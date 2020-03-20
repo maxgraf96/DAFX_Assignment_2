@@ -11,6 +11,7 @@
 #pragma once
 
 #include "../JuceLibraryCode/JuceHeader.h"
+#include "SamplePanel.h"
 
 //==============================================================================
 /**
@@ -55,12 +56,21 @@ public:
     void getStateInformation (MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    void sampleLoadedCallback(AudioBuffer<float>* buffer);
+    SamplePanel* getSamplePanel();
 
 private:
 
     // Audio buffer holding sample
     AudioBuffer<float> *sampleBuffer = nullptr;
+
+    // Window size (length)
+    int windowSize = 4800; // 100ms if sample rate is 48kHz
+    // Current PLAYING position (in terms from window start to end)
+    // This is used to transfer data from the global sample buffer to the plugin buffer
+    int playingPosition = 0;
+
+    // SamplePanel component
+    std::unique_ptr<SamplePanel> samplePanel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

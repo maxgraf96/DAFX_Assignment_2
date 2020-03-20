@@ -12,9 +12,11 @@
 #include "SamplePanel.h"
 
 //==============================================================================
-SamplePanel::SamplePanel(Dafx_assignment_2AudioProcessor& p)
-    : processor(p), thumbnailCache(5), thumbnail(512, formatManager, thumbnailCache)
+SamplePanel::SamplePanel(int windowLength)
+    : thumbnailCache(5), thumbnail(512, formatManager, thumbnailCache)
 {
+    this->windowLength = windowLength;
+
     // Initialise sample buffer
     sampleBuffer.reset(new AudioBuffer<float>());
 
@@ -35,6 +37,11 @@ SamplePanel::SamplePanel(Dafx_assignment_2AudioProcessor& p)
     // Add waveform display
     formatManager.registerBasicFormats();
     //thumbnail.addChangeListener(this);
+
+    // Preload sample for convenience
+    auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\eam\\trinken.wav");
+    filenameComponent->setCurrentFile(*currentFile, false, dontSendNotification);
+    loadFile(*currentFile);
 
     // Set component size
     setSize(1024, 200);
@@ -93,17 +100,76 @@ void SamplePanel::paintIfFileLoaded(Graphics& g, const Rectangle<int>& thumbnail
     g.fillRect(thumbnailBounds);
 
     // Draw waveform
+    auto audioLength(thumbnail.getTotalLength());
     g.setColour(Colours::lightgrey);
     thumbnail.drawChannels(g,
         thumbnailBounds,
         0.0,                                    // start time
-        thumbnail.getTotalLength(),             // end time
+        audioLength,             // end time
         1.0f);                                  // vertical zoom
+
+    // Draw time marker
+    g.setColour(Colours::green);
+
+    auto audioPosition(transportSource.getCurrentPosition());
+    auto drawPosition((audioPosition / audioLength) * thumbnailBounds.getWidth()
+        + thumbnailBounds.getX());
+    g.drawLine(drawPosition, thumbnailBounds.getY(), drawPosition,
+        thumbnailBounds.getBottom(), 2.0f);
+    // Draw window length lines
+    auto startPosition = ((audioPosition - static_cast<double>(windowLength) / 2.0 / sampleRate) / audioLength)* thumbnailBounds.getWidth();
+    auto endPosition = ((audioPosition + static_cast<double>(windowLength) / 2.0 / sampleRate) / audioLength)* thumbnailBounds.getWidth();
+    g.setColour(Colours::lightgrey);
+    g.drawLine(startPosition, thumbnailBounds.getY(), startPosition,
+        thumbnailBounds.getBottom(), 1.0f);
+    g.drawLine(endPosition, thumbnailBounds.getY(), endPosition,
+        thumbnailBounds.getBottom(), 1.0f);
 }
 
 void SamplePanel::resized()
 {
     filenameComponent->setBounds(0, 0, 1024, 30);
+}
+
+AudioBuffer<float>* SamplePanel::getSampleBuffer()
+{
+    return sampleBuffer.get();
+}
+
+double SamplePanel::getSamplePosition()
+{
+    return transportSource.getCurrentPosition();
+}
+
+void SamplePanel::setSampleRate(double sampleRate)
+{
+    this->sampleRate = sampleRate;
+}
+
+void SamplePanel::mouseDown(const MouseEvent& mouseEvent)
+{
+    mouseEventUpdateSamplePosition(mouseEvent);
+}
+
+void SamplePanel::mouseDrag(const MouseEvent& mouseEvent)
+{
+    mouseEventUpdateSamplePosition(mouseEvent);
+}
+
+void SamplePanel::mouseEventUpdateSamplePosition(const MouseEvent& mouseEvent) {
+    // Get x position in terms of component
+    auto xPos = mouseEvent.getPosition().getX();
+    auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
+    // Map to sample 
+    auto mapped = map(float(xPos), 0.0f, float(getWidth()), 0.0, fileLengthInSeconds);
+    // Constrain to keep from going out of component bounds
+    if (mapped < 0.0f)
+        mapped = 0.0f;
+    if(mapped > fileLengthInSeconds)
+        mapped = fileLengthInSeconds;
+    // Set marker
+    transportSource.setPosition(mapped);
+    repaint();
 }
 
 /*
@@ -124,14 +190,12 @@ void SamplePanel::loadFile(File file) {
             reader->read(sampleBuffer.get(), 0, reader->lengthInSamples, 0, true, true);
 
             // Display thumbnail
-            readerSource.reset(new AudioFormatReaderSource(reader, true));
+            std::unique_ptr<AudioFormatReaderSource> newSource(new AudioFormatReaderSource(reader, true));
+            transportSource.setSource(newSource.get(), 0, nullptr, reader->sampleRate);
             thumbnail.setSource(new FileInputSource(file));
-
-            // Send callback to processor
-            processor.sampleLoadedCallback(sampleBuffer.get());
             
             // Reset / release resources
-            readerSource.reset();
+            readerSource.reset(newSource.release());
             reader.release();
         }
 
@@ -151,4 +215,9 @@ void SamplePanel::filenameComponentChanged(FilenameComponent* fileComponentThatH
 {
     if (fileComponentThatHasChanged == filenameComponent.get())
         loadFile(filenameComponent->getCurrentFile());
+}
+
+float SamplePanel::map(float x, float in_min, float in_max, float out_min, float out_max)
+{
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }

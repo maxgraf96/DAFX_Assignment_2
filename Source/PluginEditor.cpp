@@ -15,13 +15,14 @@ Dafx_assignment_2AudioProcessorEditor::Dafx_assignment_2AudioProcessorEditor (Da
     : AudioProcessorEditor (&p), processor (p)
 {
     // Add child components
-    samplePanel.reset(new SamplePanel(p));
+    samplePanel.reset(p.getSamplePanel());
     addAndMakeVisible(samplePanel.get());
     setSize (1024, 600);
 }
 
 Dafx_assignment_2AudioProcessorEditor::~Dafx_assignment_2AudioProcessorEditor()
 {
+    samplePanel.release();
 }
 
 void Dafx_assignment_2AudioProcessorEditor::paint (Graphics& g)

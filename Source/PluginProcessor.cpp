@@ -23,6 +23,9 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
                        )
 #endif
 {
+    // Initialise sample panel
+    samplePanel.reset(new SamplePanel(windowSize));
+    sampleBuffer = samplePanel->getSampleBuffer();
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -94,6 +97,7 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+    samplePanel->setSampleRate(sampleRate);
 }
 
 void Dafx_assignment_2AudioProcessor::releaseResources()
@@ -131,9 +135,49 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
+    auto numSamples = buffer.getNumSamples();
 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
+        buffer.clear(i, 0, buffer.getNumSamples());
+
+    if (sampleBuffer->getNumChannels() > 0) {
+        int totalSampleLength = sampleBuffer->getNumSamples();
+        int halfWindow = int(windowSize / 2);
+        // Get currently selected position in sample (global, coming from SamplePanel)
+        // This is the position the user selected
+        int position = round(samplePanel->getSamplePosition() * getSampleRate());
+        // Hard limit global position
+        if (position + halfWindow >= totalSampleLength) {
+            position = totalSampleLength - halfWindow;
+        }
+
+        // Calculate window around this position
+        int start = position - halfWindow;
+        start = start > 0 ? start : 0;
+        int end = position + halfWindow;
+        end = end > totalSampleLength ? totalSampleLength : end;
+        if (playingPosition >= halfWindow || start + playingPosition >= end) {
+            playingPosition = 0; // Loop
+        }
+
+        // Limit numSamples so they can't go out of bounds at the end
+        if (start + playingPosition + numSamples > totalSampleLength) {
+            numSamples = start + playingPosition + numSamples - totalSampleLength;
+        } 
+
+        // Check if it's a mono or stereo sample
+        bool stereo = sampleBuffer->getNumChannels() > 1;
+        // Copy audio data from sample buffer to plugin buffer
+        for (int channel = 0; channel < totalNumOutputChannels; channel++) {
+            buffer.copyFrom(channel, 0, *sampleBuffer, stereo ? channel : 0, start + playingPosition, numSamples);
+        }
+
+        // Update playing position
+        playingPosition += numSamples;
+
+        auto a = 2;
+    }
+    
 
     //for (int channel = 0; channel < totalNumInputChannels; ++channel)
     //{
@@ -143,9 +187,9 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     //}
 }
 
-void Dafx_assignment_2AudioProcessor::sampleLoadedCallback(AudioBuffer<float>* buffer)
+SamplePanel* Dafx_assignment_2AudioProcessor::getSamplePanel()
 {
-    sampleBuffer = buffer;
+    return samplePanel.get();
 }
 
 //==============================================================================

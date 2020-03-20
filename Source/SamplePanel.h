@@ -11,7 +11,6 @@
 #pragma once
 
 #include "../JuceLibraryCode/JuceHeader.h"
-#include "PluginProcessor.h"
 
 //==============================================================================
 /*
@@ -19,14 +18,27 @@
 class SamplePanel    : public Component, FilenameComponentListener
 {
 public:
-    SamplePanel(Dafx_assignment_2AudioProcessor&);
+    SamplePanel(int windowLength);
     ~SamplePanel();
 
     void paint (Graphics&) override;
     void resized() override;
+    // For access in PluginProcessor
+    AudioBuffer<float>* getSampleBuffer();
+    // Returns current position in sample in seconds
+    double getSamplePosition();
+    void setSampleRate(double sampleRate);
 
 private:
-    Dafx_assignment_2AudioProcessor& processor;
+    double sampleRate = 0.0;
+    // Window length
+    int windowLength = 0;
+
+    // For detecting mouse clicks
+    void mouseDown(const MouseEvent& event) override;
+    void mouseDrag(const MouseEvent& event) override;
+    void mouseEventUpdateSamplePosition(const MouseEvent& event);
+    NormalisableRange<int> normaliser;
 
     // State for file loaded
     enum FileLoadedState { notLoaded, loading, loaded, rejected };
@@ -43,13 +55,15 @@ private:
     AudioThumbnailCache thumbnailCache;
     AudioThumbnail thumbnail;
     std::unique_ptr<AudioFormatReaderSource> readerSource;
-    //AudioTransportSource transportSource;
+    AudioTransportSource transportSource;
 
     void paintIfNoFileLoaded(Graphics& g, const Rectangle<int>& thumbnailBounds);
     void paintIfFileLoaded(Graphics& g, const Rectangle<int>& thumbnailBounds);
 
     void filenameComponentChanged(FilenameComponent* fileComponentThatHasChanged) override;
     void loadFile(File file);
+
+    float map(float x, float in_min, float in_max, float out_min, float out_max);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePanel)
 };
