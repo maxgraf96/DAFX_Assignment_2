@@ -24,8 +24,17 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
 #endif
 {
     // Initialise sample panel
-    samplePanel.reset(new SamplePanel(windowSize));
+    samplePanel.reset(new SamplePanel(windowLength));
     sampleBuffer = samplePanel->getSampleBuffer();
+
+    // Initialise AudioParameters
+    windowLengthParam = new AudioParameterFloat(
+        "position",
+        "Position",
+        0.0,
+        1.0,
+        0.0);
+    addParameter(windowLengthParam);
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -140,9 +149,11 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    if (sampleBuffer->getNumChannels() > 0) {
+    if (sampleBuffer->getNumChannels() > 0 && isPlaying) {
+        // Get current window length from parameter
+        windowLength = map(*windowLengthParam, 0.0, 1.0, WINDOW_LENGTH_MIN, WINDOW_LENGTH_MAX);
         int totalSampleLength = sampleBuffer->getNumSamples();
-        int halfWindow = int(windowSize / 2);
+        int halfWindow = int(windowLength / 2);
         // Get currently selected position in sample (global, coming from SamplePanel)
         // This is the position the user selected
         int position = round(samplePanel->getSamplePosition() * getSampleRate());
@@ -190,6 +201,11 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
 SamplePanel* Dafx_assignment_2AudioProcessor::getSamplePanel()
 {
     return samplePanel.get();
+}
+
+void Dafx_assignment_2AudioProcessor::togglePlaying()
+{
+    isPlaying = !isPlaying;
 }
 
 //==============================================================================

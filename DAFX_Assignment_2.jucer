@@ -4,6 +4,9 @@
               jucerVersion="5.4.5" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn">
   <MAINGROUP id="qRMJEF" name="DAFX_Assignment_2">
     <GROUP id="{9F9A7A50-A8A3-5D1E-3E6D-AFA81AB820E1}" name="Source">
+      <FILE id="MJeQWC" name="Utility.cpp" compile="1" resource="0" file="Source/Utility.cpp"/>
+      <FILE id="UOGSYN" name="Constants.h" compile="0" resource="0" file="Source/Constants.h"/>
+      <FILE id="F25n1B" name="Utility.h" compile="0" resource="0" file="Source/Utility.h"/>
       <FILE id="vau0Bw" name="SamplePanel.cpp" compile="1" resource="0" file="Source/SamplePanel.cpp"/>
       <FILE id="NZ0QKI" name="SamplePanel.h" compile="0" resource="0" file="Source/SamplePanel.h"/>
       <FILE id="lo2hCm" name="PluginProcessor.cpp" compile="1" resource="0"

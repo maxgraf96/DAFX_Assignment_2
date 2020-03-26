@@ -8,7 +8,6 @@
   ==============================================================================
 */
 
-#include "../JuceLibraryCode/JuceHeader.h"
 #include "SamplePanel.h"
 
 //==============================================================================
@@ -161,7 +160,7 @@ void SamplePanel::mouseEventUpdateSamplePosition(const MouseEvent& mouseEvent) {
     auto xPos = mouseEvent.getPosition().getX();
     auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
     // Map to sample 
-    auto mapped = map(float(xPos), 0.0f, float(getWidth()), 0.0, fileLengthInSeconds);
+    double mapped = map(float(xPos), 0.0f, float(getWidth()), 0.0, fileLengthInSeconds);
     // Constrain to keep from going out of component bounds
     if (mapped < 0.0f)
         mapped = 0.0f;
@@ -211,13 +210,14 @@ void SamplePanel::loadFile(File file) {
     }
 }
 
+void SamplePanel::setWindowLength(float windowLength) {
+    auto l = map(windowLength, 0.0, 1.0, WINDOW_LENGTH_MIN, WINDOW_LENGTH_MAX);
+    this->windowLength = static_cast<int>(l);
+    repaint();
+}
+
 void SamplePanel::filenameComponentChanged(FilenameComponent* fileComponentThatHasChanged) 
 {
     if (fileComponentThatHasChanged == filenameComponent.get())
         loadFile(filenameComponent->getCurrentFile());
-}
-
-float SamplePanel::map(float x, float in_min, float in_max, float out_min, float out_max)
-{
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }

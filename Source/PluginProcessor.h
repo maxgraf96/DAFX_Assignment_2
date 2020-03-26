@@ -16,7 +16,7 @@
 //==============================================================================
 /**
 */
-class Dafx_assignment_2AudioProcessor  : public AudioProcessor
+class Dafx_assignment_2AudioProcessor : public AudioProcessor
 {
 public:
     //==============================================================================
@@ -57,20 +57,27 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     SamplePanel* getSamplePanel();
+    void togglePlaying();
 
 private:
+    // Whether there should be any audio coming through
+    bool isPlaying = true;
 
     // Audio buffer holding sample
     AudioBuffer<float> *sampleBuffer = nullptr;
 
     // Window size (length)
-    int windowSize = 4800; // 100ms if sample rate is 48kHz
+    int windowLength = WINDOW_LENGTH_MIN; 
     // Current PLAYING position (in terms from window start to end)
     // This is used to transfer data from the global sample buffer to the plugin buffer
     int playingPosition = 0;
 
     // SamplePanel component
     std::unique_ptr<SamplePanel> samplePanel;
+
+    // Control parameters
+    // Controls the sample position in seconds
+    AudioParameterFloat* windowLengthParam;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

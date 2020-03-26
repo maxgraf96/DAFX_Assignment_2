@@ -11,6 +11,8 @@
 #pragma once
 
 #include "../JuceLibraryCode/JuceHeader.h"
+#include "Utility.h"
+#include "Constants.h"
 
 //==============================================================================
 /*
@@ -28,6 +30,7 @@ public:
     // Returns current position in sample in seconds
     double getSamplePosition();
     void setSampleRate(double sampleRate);
+    void setWindowLength(float windowLength);
 
 private:
     double sampleRate = 0.0;
@@ -62,8 +65,6 @@ private:
 
     void filenameComponentChanged(FilenameComponent* fileComponentThatHasChanged) override;
     void loadFile(File file);
-
-    float map(float x, float in_min, float in_max, float out_min, float out_max);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePanel)
 };

@@ -15,7 +15,7 @@
 
 /**
 */
-class Dafx_assignment_2AudioProcessorEditor  : public AudioProcessorEditor
+class Dafx_assignment_2AudioProcessorEditor  : public AudioProcessorEditor, Slider::Listener, KeyListener
 {
 public:
     Dafx_assignment_2AudioProcessorEditor (Dafx_assignment_2AudioProcessor&);
@@ -23,13 +23,21 @@ public:
 
     void paint (Graphics&) override;
     void resized() override;
+    void sliderValueChanged(Slider* slider) override;
 
 private:
     Dafx_assignment_2AudioProcessor& processor;
 
+    // UI Elements
+    // Sliders
+    std::unique_ptr<Slider> windowLengthSlider;
+
     // Panel that holds audio sample
     // Supports drag and drop
     std::unique_ptr<SamplePanel> samplePanel;
+
+    // For detecting keyboard events
+    bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessorEditor)
 };
