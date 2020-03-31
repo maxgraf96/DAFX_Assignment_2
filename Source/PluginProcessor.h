@@ -12,6 +12,7 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "SamplePanel.h"
+#include "Delay.h"
 
 //==============================================================================
 /**
@@ -57,7 +58,11 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     SamplePanel* getSamplePanel();
-    void togglePlaying();
+    void play();
+
+    void setDelayTime(float delayTime);
+    void setDelayFeedback(float delayFeedback);
+    void setDelayWet(float delayWet);
 
 private:
     // Whether there should be any audio coming through
@@ -78,6 +83,12 @@ private:
     // Control parameters
     // Controls the sample position in seconds
     AudioParameterFloat* windowLengthParam;
+    AudioParameterFloat* delayTimeParam;
+    AudioParameterFloat* delayFeedbackParam;
+    AudioParameterFloat* delayWetParam;
+
+    // Delay object
+    std::unique_ptr<Delay> delay;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

@@ -34,7 +34,32 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
         0.0,
         1.0,
         0.0);
+    delayTimeParam = new AudioParameterFloat(
+        "delayTime",
+        "Delay Time",
+        0.0,
+        1.0,
+        0.2);
+    delayFeedbackParam = new AudioParameterFloat(
+        "delayFeedback",
+        "Delay Feedback",
+        0.0,
+        1.0,
+        0.5);
+    delayWetParam = new AudioParameterFloat(
+        "delayWet",
+        "Delay Wet",
+        0.0,
+        1.0,
+        1.0);
+    
     addParameter(windowLengthParam);
+    addParameter(delayTimeParam);
+    addParameter(delayFeedbackParam);
+    addParameter(delayWetParam);
+
+    // Initialise delay
+    delay.reset(new Delay());
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -107,6 +132,14 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
     samplePanel->setSampleRate(sampleRate);
+
+    // Prepare delay object
+    auto processContext = new juce::dsp::ProcessSpec();
+    processContext->maximumBlockSize = samplesPerBlock;
+    processContext->numChannels = 2;
+    processContext->sampleRate = sampleRate;
+
+    delay->prepare(*processContext);
 }
 
 void Dafx_assignment_2AudioProcessor::releaseResources()
@@ -146,8 +179,8 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     auto totalNumOutputChannels = getTotalNumOutputChannels();
     auto numSamples = buffer.getNumSamples();
 
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+    //for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+        //buffer.clear(i, 0, buffer.getNumSamples());
 
     if (sampleBuffer->getNumChannels() > 0 && isPlaying) {
         // Get current window length from parameter
@@ -168,7 +201,9 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         int end = position + halfWindow;
         end = end > totalSampleLength ? totalSampleLength : end;
         if (playingPosition >= halfWindow || start + playingPosition >= end) {
-            playingPosition = 0; // Loop
+            playingPosition = 0; 
+            // Stop playback
+            isPlaying = false;
         }
 
         // Limit numSamples so they can't go out of bounds at the end
@@ -181,12 +216,16 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         // Copy audio data from sample buffer to plugin buffer
         for (int channel = 0; channel < totalNumOutputChannels; channel++) {
             buffer.copyFrom(channel, 0, *sampleBuffer, stereo ? channel : 0, start + playingPosition, numSamples);
+
+            // Feed into delay
+            delay->process(buffer);
         }
 
         // Update playing position
         playingPosition += numSamples;
-
-        auto a = 2;
+    }
+    else {
+        delay->process(buffer);
     }
     
 
@@ -198,14 +237,27 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     //}
 }
 
+void Dafx_assignment_2AudioProcessor::setDelayTime(float delayTime) {
+    delay->setDelayTime(0, delayTime);
+    delay->setDelayTime(1, delayTime);
+}
+
+void Dafx_assignment_2AudioProcessor::setDelayFeedback(float delayFeedback) {
+    delay->setFeedback(delayFeedback);
+}
+
+void Dafx_assignment_2AudioProcessor::setDelayWet(float delayWet) {
+    delay->setWetLevel(delayWet);
+}
+
 SamplePanel* Dafx_assignment_2AudioProcessor::getSamplePanel()
 {
     return samplePanel.get();
 }
 
-void Dafx_assignment_2AudioProcessor::togglePlaying()
+void Dafx_assignment_2AudioProcessor::play()
 {
-    isPlaying = !isPlaying;
+    isPlaying = true;
 }
 
 //==============================================================================

@@ -31,6 +31,10 @@ private:
     // UI Elements
     // Sliders
     std::unique_ptr<Slider> windowLengthSlider;
+    std::unique_ptr<Slider> delayTimeSlider;
+    std::unique_ptr<Slider> delayFeedbackSlider;
+    std::unique_ptr<Slider> delayWetSlider;
+
 
     // Panel that holds audio sample
     // Supports drag and drop

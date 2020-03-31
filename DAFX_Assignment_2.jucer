@@ -4,6 +4,9 @@
               jucerVersion="5.4.5" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn">
   <MAINGROUP id="qRMJEF" name="DAFX_Assignment_2">
     <GROUP id="{9F9A7A50-A8A3-5D1E-3E6D-AFA81AB820E1}" name="Source">
+      <FILE id="m8Y7od" name="Delay.cpp" compile="1" resource="0" file="Source/Delay.cpp"/>
+      <FILE id="FtftxE" name="Delay.h" compile="0" resource="0" file="Source/Delay.h"/>
+      <FILE id="f53xnZ" name="DelayLine.h" compile="0" resource="0" file="Source/DelayLine.h"/>
       <FILE id="MJeQWC" name="Utility.cpp" compile="1" resource="0" file="Source/Utility.cpp"/>
       <FILE id="UOGSYN" name="Constants.h" compile="0" resource="0" file="Source/Constants.h"/>
       <FILE id="F25n1B" name="Utility.h" compile="0" resource="0" file="Source/Utility.h"/>
