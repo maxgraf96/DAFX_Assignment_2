@@ -13,6 +13,7 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "SamplePanel.h"
 #include "Delay.h"
+#include "dywapitchtrack-master/src/dywapitchtrack.h"
 
 //==============================================================================
 /**
@@ -58,15 +59,18 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     SamplePanel* getSamplePanel();
-    void play();
 
-    void setDelayTime(float delayTime);
+    // Delay methods
+    void setDelayTime(int delayTimeSamples);
     void setDelayFeedback(float delayFeedback);
     void setDelayWet(float delayWet);
 
+    void playNote(int noteNumber);
+
 private:
     // Whether there should be any audio coming through
-    bool isPlaying = true;
+    bool isPlaying = false;
+    bool isCapturing = false;
 
     // Audio buffer holding sample
     AudioBuffer<float> *sampleBuffer = nullptr;
@@ -79,16 +83,38 @@ private:
 
     // SamplePanel component
     std::unique_ptr<SamplePanel> samplePanel;
+    int samplePanelStartIdx = 0;
 
     // Control parameters
     // Controls the sample position in seconds
     AudioParameterFloat* windowLengthParam;
-    AudioParameterFloat* delayTimeParam;
+    AudioParameterInt* delayTimeParam;
     AudioParameterFloat* delayFeedbackParam;
     AudioParameterFloat* delayWetParam;
 
+    // This buffer stores a subset of the sample buffer for playback
+    std::unique_ptr<AudioBuffer<float>> playbackBuffer;
+
     // Delay object
     std::unique_ptr<Delay> delay;
+
+    // Pitch detection
+    dywapitchtracker pitchtracker;
+    // Used to calculate avg frequency over n_frames
+    // int n_frames = 4;
+    // This stores the detected pitch of the sound in the capture buffer
+    // It is defined by the width of the window
+    // double currentPitch = 0.0;
+    // Index storing where the buffer should end to get the desired frequency
+    // Set in playNote()
+    bool playFromPlaybackBuffer = false;
+    int playbackBufferSamplePosition = 0;
+
+    // MIDI stuff
+    double midiStartTime = 0.0;
+    const int midiChannel = 0;
+    MidiBuffer midiBuffer;
+    int previousSampleNumber = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

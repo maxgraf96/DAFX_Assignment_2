@@ -38,7 +38,7 @@ SamplePanel::SamplePanel(int windowLength)
     //thumbnail.addChangeListener(this);
 
     // Preload sample for convenience
-    auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\eam\\trinken.wav");
+    auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\betti.wav");
     filenameComponent->setCurrentFile(*currentFile, false, dontSendNotification);
     loadFile(*currentFile);
 

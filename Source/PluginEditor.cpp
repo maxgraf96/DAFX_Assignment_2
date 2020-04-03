@@ -129,10 +129,5 @@ void Dafx_assignment_2AudioProcessorEditor::sliderValueChanged(Slider* slider)
 
 bool Dafx_assignment_2AudioProcessorEditor::keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent)
 {
-    // Toggle audio playback with space key
-    if (key == juce::KeyPress::spaceKey) {
-        processor.play();
-        return true;
-    }
     return false;
 }

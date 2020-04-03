@@ -15,8 +15,8 @@ Delay::Delay()
     setMaxDelayTime(2.0f);
     setDelayTime(0, 0.7f);
     setDelayTime(1, 0.5f);
-    setWetLevel(0.8f);
-    setFeedback(0.5f);
+    setWetLevel(1.0f);
+    setFeedback(1.0f);
 }
 
 void Delay::prepare(const juce::dsp::ProcessSpec& spec)
@@ -47,7 +47,7 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
         auto input = inputBuffer[ch];
         auto output = inputBuffer[ch];
         auto& dline = delayLines[ch];
-        auto delayTime = delayTimesSample[ch];
+        auto delayTime = delayTimes[ch];
         auto& filter = filters[ch];
 
         for (size_t i = 0; i < numSamples; ++i)
@@ -56,7 +56,8 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
             auto inputSample = input[i];
             auto dlineInputSample = std::tanh(inputSample + feedback * delayedSample);
             dline.push(dlineInputSample);
-            auto outputSample = inputSample + wetLevel * delayedSample;
+            //auto outputSample = inputSample + wetLevel * delayedSample;
+            auto outputSample = wetLevel * delayedSample;
             output[i] = outputSample;
         }
     }
@@ -67,7 +68,7 @@ void Delay::reset() noexcept
     for (auto& f : filters)
         f.reset();
 
-    for (auto& dline : delayLines)
+    for (auto& dline : delayLines) 
         dline.clear();
 }
 
@@ -85,7 +86,7 @@ void Delay::setMaxDelayTime(float newValue)
 
 void Delay::setFeedback(float newValue) noexcept
 {
-    jassert(newValue >= float(0) && newValue <= float(1));
+    jassert(newValue >= float(0)); //&& newValue <= float(1));
     feedback = newValue;
 }
 
@@ -95,7 +96,7 @@ void Delay::setWetLevel(float newValue) noexcept
     wetLevel = newValue;
 }
 
-void Delay::setDelayTime(size_t channel, float newValue)
+void Delay::setDelayTime(size_t channel, int newValueSamples)
 {
     if (channel >= getNumChannels())
     {
@@ -103,8 +104,8 @@ void Delay::setDelayTime(size_t channel, float newValue)
         return;
     }
 
-    jassert(newValue >= float(0));
-    delayTimes[channel] = newValue;
+    jassert(newValueSamples >= 0);
+    delayTimes[channel] = newValueSamples;
 
     updateDelayTime();
 }
@@ -117,6 +118,9 @@ void Delay::updateDelayLineSize() {
 }
 
 void Delay::updateDelayTime() noexcept {
-    for (size_t ch = 0; ch < maxNumChannels; ++ch)
-        delayTimesSample[ch] = (size_t)juce::roundToInt(delayTimes[ch] * sampleRate); // [4]
+    for (size_t ch = 0; ch < maxNumChannels; ++ch) {
+        //delayTimesSample[ch] = (size_t)juce::roundToInt(delayTimes[ch] * sampleRate);
+        delayTimesSample[ch] = delayTimesSample[ch];
+
+    }
 }

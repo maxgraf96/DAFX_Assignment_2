@@ -31,13 +31,13 @@ public:
 
     void setWetLevel(float newValue) noexcept;
 
-    void setDelayTime(size_t channel, float newValue);
+    void setDelayTime(size_t channel, int newValue);
 
 private:
     const int maxNumChannels = 2;
     std::array<DelayLine<float>, 2> delayLines;
     std::array<size_t, 2> delayTimesSample;
-    std::array<float, 2> delayTimes;
+    std::array<int, 2> delayTimes;
     float feedback{ float(0) };
     float wetLevel{ float(0) };
 

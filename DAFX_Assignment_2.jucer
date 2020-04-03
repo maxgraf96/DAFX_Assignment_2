@@ -4,6 +4,46 @@
               jucerVersion="5.4.5" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn">
   <MAINGROUP id="qRMJEF" name="DAFX_Assignment_2">
     <GROUP id="{9F9A7A50-A8A3-5D1E-3E6D-AFA81AB820E1}" name="Source">
+      <GROUP id="{4D330802-6A6F-AEB5-72D1-785918630A77}" name="dywapitchtrack-master">
+        <GROUP id="{F0CE54ED-49C5-AA8D-1535-1873C6460495}" name="iPhone">
+          <GROUP id="{2A293404-7FBD-FABB-2D46-7645490BC454}" name="dywapitchtrack.xcodeproj">
+            <GROUP id="{1BFC54EE-2C36-6DA1-A708-7C244E5AE183}" name="project.xcworkspace">
+              <GROUP id="{5249E85C-3C68-9189-682E-ED20E088EBB2}" name="xcuserdata">
+                <GROUP id="{893A32D6-233E-4C17-46A4-623523E61D15}" name="antoine.xcuserdatad">
+                  <FILE id="wOuzKc" name="UserInterfaceState.xcuserstate" compile="0"
+                        resource="1" file="Source/dywapitchtrack-master/iPhone/dywapitchtrack.xcodeproj/project.xcworkspace/xcuserdata/antoine.xcuserdatad/UserInterfaceState.xcuserstate"/>
+                </GROUP>
+              </GROUP>
+              <FILE id="Uu6cOe" name="contents.xcworkspacedata" compile="0" resource="1"
+                    file="Source/dywapitchtrack-master/iPhone/dywapitchtrack.xcodeproj/project.xcworkspace/contents.xcworkspacedata"/>
+            </GROUP>
+            <GROUP id="{925BD5A6-ED40-2AAC-6EB8-2A75AA50EF1D}" name="xcuserdata">
+              <GROUP id="{562C1AF3-2B41-F409-CA66-47DD64EB8BD5}" name="antoine.xcuserdatad">
+                <GROUP id="{69C5353F-9003-9382-0C7D-9DB8DAAE377B}" name="xcschemes">
+                  <FILE id="T8CEli" name="dywapitchtrack.xcscheme" compile="0" resource="1"
+                        file="Source/dywapitchtrack-master/iPhone/dywapitchtrack.xcodeproj/xcuserdata/antoine.xcuserdatad/xcschemes/dywapitchtrack.xcscheme"/>
+                  <FILE id="MhdTjf" name="xcschememanagement.plist" compile="0" resource="1"
+                        file="Source/dywapitchtrack-master/iPhone/dywapitchtrack.xcodeproj/xcuserdata/antoine.xcuserdatad/xcschemes/xcschememanagement.plist"/>
+                </GROUP>
+              </GROUP>
+            </GROUP>
+            <FILE id="uQTNI0" name="antoine.mode1v3" compile="0" resource="1" file="Source/dywapitchtrack-master/iPhone/dywapitchtrack.xcodeproj/antoine.mode1v3"/>
+            <FILE id="LOvCU1" name="antoine.pbxuser" compile="0" resource="1" file="Source/dywapitchtrack-master/iPhone/dywapitchtrack.xcodeproj/antoine.pbxuser"/>
+            <FILE id="YjHcXV" name="project.pbxproj" compile="0" resource="1" file="Source/dywapitchtrack-master/iPhone/dywapitchtrack.xcodeproj/project.pbxproj"/>
+          </GROUP>
+          <FILE id="zTQPsR" name="dywapitchtrack_Prefix.pch" compile="0" resource="1"
+                file="Source/dywapitchtrack-master/iPhone/dywapitchtrack_Prefix.pch"/>
+        </GROUP>
+        <GROUP id="{6A6D709D-1164-7989-11B3-CB75DC2CFAB9}" name="src">
+          <FILE id="tJuiPM" name="dywapitchtrack.c" compile="1" resource="0"
+                file="Source/dywapitchtrack-master/src/dywapitchtrack.c"/>
+          <FILE id="mVtmyC" name="dywapitchtrack.h" compile="0" resource="0"
+                file="Source/dywapitchtrack-master/src/dywapitchtrack.h"/>
+        </GROUP>
+        <FILE id="FOq1ZZ" name="DOCUMENTATION.txt" compile="0" resource="1"
+              file="Source/dywapitchtrack-master/DOCUMENTATION.txt"/>
+        <FILE id="WBMma9" name="README.txt" compile="0" resource="1" file="Source/dywapitchtrack-master/README.txt"/>
+      </GROUP>
       <FILE id="m8Y7od" name="Delay.cpp" compile="1" resource="0" file="Source/Delay.cpp"/>
       <FILE id="FtftxE" name="Delay.h" compile="0" resource="0" file="Source/Delay.h"/>
       <FILE id="f53xnZ" name="DelayLine.h" compile="0" resource="0" file="Source/DelayLine.h"/>
@@ -65,7 +105,7 @@
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
   </MODULES>
   <LIVE_SETTINGS>
-    <WINDOWS buildEnabled="1" systemHeaderPath="C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include"
+    <WINDOWS buildEnabled="0" systemHeaderPath="C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include"
              windowsTargetPlatformVersion="10.0.10240.0"/>
   </LIVE_SETTINGS>
   <JUCEOPTIONS JUCE_VST3_CAN_REPLACE_VST2="0" JUCE_STRICT_REFCOUNTEDPOINTER="1"/>

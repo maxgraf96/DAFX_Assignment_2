@@ -33,19 +33,19 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
         "Position",
         0.0,
         1.0,
-        0.0);
-    delayTimeParam = new AudioParameterFloat(
+        0.1);
+    delayTimeParam = new AudioParameterInt(
         "delayTime",
         "Delay Time",
-        0.0,
-        1.0,
-        0.2);
+        0,
+        48000 / 50, // 50Hz
+        960);
     delayFeedbackParam = new AudioParameterFloat(
         "delayFeedback",
         "Delay Feedback",
         0.0,
-        1.0,
-        0.5);
+        2.0,
+        1.0);
     delayWetParam = new AudioParameterFloat(
         "delayWet",
         "Delay Wet",
@@ -60,6 +60,9 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
 
     // Initialise delay
     delay.reset(new Delay());
+
+    // Initialise midi
+    midiStartTime = Time::getMillisecondCounterHiRes() * 0.001;
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -139,7 +142,18 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     processContext->numChannels = 2;
     processContext->sampleRate = sampleRate;
 
+    // Set n_frames
+    // auto blockSRRatio = samplesPerBlock / sampleRate;
+    // double captureTimeInSeconds = 0.1;
+    // n_frames = int(captureTimeInSeconds / blockSRRatio);
+
+    // Setup capture buffer
+    playbackBuffer.reset(new AudioBuffer<float>(2, int(2 * sampleRate)));
+
     delay->prepare(*processContext);
+
+    // Prepare pitch detection object
+    dywapitch_inittracking(&pitchtracker);
 }
 
 void Dafx_assignment_2AudioProcessor::releaseResources()
@@ -179,10 +193,7 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     auto totalNumOutputChannels = getTotalNumOutputChannels();
     auto numSamples = buffer.getNumSamples();
 
-    //for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        //buffer.clear(i, 0, buffer.getNumSamples());
-
-    if (sampleBuffer->getNumChannels() > 0 && isPlaying) {
+    if (sampleBuffer->getNumChannels() > 0) {
         // Get current window length from parameter
         windowLength = map(*windowLengthParam, 0.0, 1.0, WINDOW_LENGTH_MIN, WINDOW_LENGTH_MAX);
         int totalSampleLength = sampleBuffer->getNumSamples();
@@ -196,50 +207,131 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         }
 
         // Calculate window around this position
-        int start = position - halfWindow;
-        start = start > 0 ? start : 0;
+        samplePanelStartIdx = position - halfWindow;
+        samplePanelStartIdx = samplePanelStartIdx > 0 ? samplePanelStartIdx : 0;
         int end = position + halfWindow;
         end = end > totalSampleLength ? totalSampleLength : end;
-        if (playingPosition >= halfWindow || start + playingPosition >= end) {
-            playingPosition = 0; 
-            // Stop playback
-            isPlaying = false;
+
+        // This will hit once a sample was captured and a key is pressed
+        if (playFromPlaybackBuffer) {
+            buffer.clear();
+
+            // Get number of samples to copy
+            auto numSamplesToCopy = numSamples;
+            if (playbackBufferSamplePosition + numSamples >= playbackBuffer->getNumSamples()) {
+                // If we are at the end of the capture buffer
+                numSamplesToCopy = playbackBufferSamplePosition + numSamples - playbackBuffer->getNumSamples();
+                // Stop playback for next block
+                playFromPlaybackBuffer = false;
+            }
+
+            for (int channel = 0; channel < totalNumOutputChannels; channel++) {
+                buffer.copyFrom(channel, 0, *playbackBuffer, channel, playbackBufferSamplePosition, numSamplesToCopy);
+            }
+
+            // Update sample counter
+            playbackBufferSamplePosition += numSamples;
         }
-
-        // Limit numSamples so they can't go out of bounds at the end
-        if (start + playingPosition + numSamples > totalSampleLength) {
-            numSamples = start + playingPosition + numSamples - totalSampleLength;
-        } 
-
-        // Check if it's a mono or stereo sample
-        bool stereo = sampleBuffer->getNumChannels() > 1;
-        // Copy audio data from sample buffer to plugin buffer
-        for (int channel = 0; channel < totalNumOutputChannels; channel++) {
-            buffer.copyFrom(channel, 0, *sampleBuffer, stereo ? channel : 0, start + playingPosition, numSamples);
-
-            // Feed into delay
-            delay->process(buffer);
-        }
-
-        // Update playing position
-        playingPosition += numSamples;
     }
-    else {
-        delay->process(buffer);
-    }
-    
 
-    //for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    //{
-    //    auto* channelData = buffer.getWritePointer (channel);
-
-    //    // ..do something to the data...
+    // Code for "playing" a small windowed part of the loaded signal
+    // Through playing and processing the sound it is captured in the captureBuffer object
+    // which is subsequently used to determine the pitch and synthesise moooar sound
+    //if (sampleBuffer->getNumChannels() > 0 && isPlaying) {
+    //    // Get current window length from parameter
+    //    windowLength = map(*windowLengthParam, 0.0, 1.0, WINDOW_LENGTH_MIN, WINDOW_LENGTH_MAX);
+    //    int totalSampleLength = sampleBuffer->getNumSamples();
+    //    int halfWindow = int(windowLength / 2);
+    //    // Get currently selected position in sample (global, coming from SamplePanel)
+    //    // This is the position the user selected
+    //    int position = round(samplePanel->getSamplePosition() * getSampleRate());
+    //    // Hard limit global position
+    //    if (position + halfWindow >= totalSampleLength) {
+    //        position = totalSampleLength - halfWindow;
+    //    }
+    //    // Calculate window around this position
+    //    int samplePanelStartIdx = position - halfWindow;
+    //    samplePanelStartIdx = samplePanelStartIdx > 0 ? samplePanelStartIdx : 0;
+    //    int end = position + halfWindow;
+    //    end = end > totalSampleLength ? totalSampleLength : end;
+    //    if (playingPosition >= halfWindow || samplePanelStartIdx + playingPosition >= end) {
+    //        playingPosition = 0; 
+    //        // Stop playing
+    //        isPlaying = false;
+    //    }
+    //    // Limit numSamples so they can't go out of bounds at the end
+    //    if (samplePanelStartIdx + playingPosition + numSamples > totalSampleLength) {
+    //        numSamples = samplePanelStartIdx + playingPosition + numSamples - totalSampleLength;
+    //    } 
+    //    // Check if it's a mono or stereo sample
+    //    bool stereo = sampleBuffer->getNumChannels() > 1;
+    //    // Copy audio data from sample buffer to plugin buffer
+    //    for (int channel = 0; channel < totalNumOutputChannels; channel++) {
+    //        buffer.copyFrom(channel, 0, *sampleBuffer, stereo ? channel : 0, samplePanelStartIdx + playingPosition, numSamples);
+    //    }
+    //    // Update playing position
+    //    playingPosition += numSamples;
     //}
+
+    // Feed signal into delay line
+    delay->process(buffer);
+
+    // Handle MIDI
+    MidiBuffer processedMidi;
+    int time;
+    MidiMessage m;
+    int noteOnVel = 120;
+
+    for (MidiBuffer::Iterator i(midiMessages); i.getNextEvent(m, time);)
+    {
+        if (m.isNoteOn())
+        {
+            uint8 newVel = (uint8) noteOnVel;
+            m = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber(), newVel);
+
+            playNote(m.getNoteNumber());
+        }
+        else if (m.isNoteOff())
+        {
+            // Maybe later
+        }
+
+        processedMidi.addEvent(m, time);
+    }
+
+    midiMessages.swapWith(processedMidi);
 }
 
-void Dafx_assignment_2AudioProcessor::setDelayTime(float delayTime) {
-    delay->setDelayTime(0, delayTime);
-    delay->setDelayTime(1, delayTime);
+void Dafx_assignment_2AudioProcessor::playNote(int noteNumber)
+{
+    // Reset capture buffer sample position
+    playbackBufferSamplePosition = 0;
+
+    // Reset playback buffer
+    playbackBuffer->clear();
+
+    // Convert note number to frequency
+    auto frequency = MidiMessage::getMidiNoteInHertz(noteNumber);
+
+    // Convert frequency to delay time (seconds)
+    double delayTime = 1.0 / frequency;
+
+    // Convert delay time seconds to samples
+    int delayTimeSamples = round(delayTime * getSampleRate());
+
+    // Set delay time for both channels
+    setDelayTime(delayTimeSamples);
+
+    // Load window into playback buffer
+    for (int channel = 0; channel < sampleBuffer->getNumChannels(); channel++)
+        playbackBuffer->copyFrom(channel, 0, *sampleBuffer, channel, samplePanelStartIdx, windowLength);
+
+    playFromPlaybackBuffer = true;
+}
+
+void Dafx_assignment_2AudioProcessor::setDelayTime(int delayTimeSamples) {
+    delay->setDelayTime(0, delayTimeSamples);
+    delay->setDelayTime(1, delayTimeSamples);
 }
 
 void Dafx_assignment_2AudioProcessor::setDelayFeedback(float delayFeedback) {
@@ -253,11 +345,6 @@ void Dafx_assignment_2AudioProcessor::setDelayWet(float delayWet) {
 SamplePanel* Dafx_assignment_2AudioProcessor::getSamplePanel()
 {
     return samplePanel.get();
-}
-
-void Dafx_assignment_2AudioProcessor::play()
-{
-    isPlaying = true;
 }
 
 //==============================================================================
@@ -291,3 +378,15 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new Dafx_assignment_2AudioProcessor();
 }
+
+// Maybe needed later
+// Estimate pitch
+//currentPitch = dywapitch_computepitch(&pitchtracker, getSampleRate(), captureBufferCopy.get(), 0, numSamples * n_frames);
+//// Print average pitch
+//if (currentPitch > 0.0) {
+//    auto note = int(log(currentPitch / 440.0) / log(2) * 12 + 69);
+//    auto octave = note / 12 - 1;
+//    juce::String notes = "C C#D D#E F F#G G#A A#B ";
+//    auto note_str = notes.substring((note % 12) * 2, (note % 12) * 2 + 2) + juce::String(octave);
+//    DBG(note_str);
+//}
