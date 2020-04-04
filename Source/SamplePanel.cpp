@@ -157,6 +157,11 @@ void SamplePanel::setSamplePosition(float position)
     repaint();
 }
 
+void SamplePanel::setSamplePositionAbsolute(float position)
+{
+    positionAbsolute = position;
+}
+
 double SamplePanel::getSamplePosition()
 {
     return transportSource.getCurrentPosition();
@@ -226,6 +231,12 @@ void SamplePanel::loadFile(File file) {
             // Reset / release resources
             readerSource.reset(newSource.release());
             reader.release();
+        }
+
+        // Restore position if loaded
+        if (positionAbsolute > 0.0) {
+            setSamplePosition(positionAbsolute);
+            positionAbsolute = 0.0;
         }
 
         fileLoadedState = loaded;

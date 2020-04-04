@@ -63,6 +63,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     parameters.addParameterListener("delayFeedback", this);
     parameters.addParameterListener("delayWet", this);
 
+    positionParam = parameters.getRawParameterValue("position");
     windowLengthParam = parameters.getRawParameterValue("windowLength");
     delayFeedbackParam = parameters.getRawParameterValue("delayFeedback");
     delayWetParam = parameters.getRawParameterValue("delayWet");
@@ -316,11 +317,14 @@ void Dafx_assignment_2AudioProcessor::setStateInformation (const void* data, int
             parameters.replaceState(ValueTree::fromXml(*xmlState));
 
     // Have to manually set here because state loading happens after all components are constructed
-    Value val = parameters.state.getPropertyAsValue("currentFilePath", nullptr);
-    auto act = val.getValue().toString();
-    if (act != "") {
-        samplePanel->setCurrentFilePath(act);
-    }
+    Value path = parameters.state.getPropertyAsValue("currentFilePath", nullptr);
+    auto path_str = path.getValue().toString();
+    if (path_str != "") {
+        samplePanel->setCurrentFilePath(path_str);
+
+        // Update position as well
+        samplePanel->setSamplePositionAbsolute(*positionParam);
+    } 
 }
 
 //==============================================================================

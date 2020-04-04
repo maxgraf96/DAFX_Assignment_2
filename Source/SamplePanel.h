@@ -28,6 +28,7 @@ public:
     // For access in PluginProcessor
     AudioBuffer<float>* getSampleBuffer();
     void setSamplePosition(float position);
+    void setSamplePositionAbsolute(float position);
     // Returns current position in sample in seconds
     double getSamplePosition();
     void setSampleRate(double sampleRate);
@@ -39,6 +40,8 @@ public:
 private:
     // State management
     AudioProcessorValueTreeState& valueTreeState;
+
+    float positionAbsolute = 0.0;
     
     double sampleRate = 0.0;
     // Window length
