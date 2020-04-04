@@ -14,6 +14,7 @@
 #include "SamplePanel.h"
 #include "Delay.h"
 #include "dywapitchtrack-master/src/dywapitchtrack.h"
+#include "Voice.h"
 
 //==============================================================================
 /**
@@ -61,11 +62,8 @@ public:
     SamplePanel* getSamplePanel();
 
     // Delay methods
-    void setDelayTime(int delayTimeSamples);
     void setDelayFeedback(float delayFeedback);
     void setDelayWet(float delayWet);
-
-    void playNote(int noteNumber);
 
 private:
     // Whether there should be any audio coming through
@@ -92,11 +90,9 @@ private:
     AudioParameterFloat* delayFeedbackParam;
     AudioParameterFloat* delayWetParam;
 
-    // This buffer stores a subset of the sample buffer for playback
-    std::unique_ptr<AudioBuffer<float>> playbackBuffer;
-
-    // Delay object
-    std::unique_ptr<Delay> delay;
+    // Polyphony
+    const int NUM_VOICES = 16;
+    std::vector<std::unique_ptr<Voice>> voices = {};
 
     // Pitch detection
     dywapitchtracker pitchtracker;

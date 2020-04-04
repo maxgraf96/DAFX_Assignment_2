@@ -4,6 +4,8 @@
               jucerVersion="5.4.5" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn">
   <MAINGROUP id="qRMJEF" name="DAFX_Assignment_2">
     <GROUP id="{9F9A7A50-A8A3-5D1E-3E6D-AFA81AB820E1}" name="Source">
+      <FILE id="utkVNx" name="Voice.cpp" compile="1" resource="0" file="Source/Voice.cpp"/>
+      <FILE id="cRRbeL" name="Voice.h" compile="0" resource="0" file="Source/Voice.h"/>
       <GROUP id="{4D330802-6A6F-AEB5-72D1-785918630A77}" name="dywapitchtrack-master">
         <GROUP id="{F0CE54ED-49C5-AA8D-1535-1873C6460495}" name="iPhone">
           <GROUP id="{2A293404-7FBD-FABB-2D46-7645490BC454}" name="dywapitchtrack.xcodeproj">

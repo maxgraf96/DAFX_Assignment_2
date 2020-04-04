@@ -110,11 +110,6 @@ void Dafx_assignment_2AudioProcessorEditor::sliderValueChanged(Slider* slider)
 		*windowLengthParam = windowLengthSlider->getValue();
         samplePanel->setWindowLength(*windowLengthParam);
 	}
-    if (slider == delayTimeSlider.get()) {
-        AudioParameterFloat* delayTimeParam = static_cast<AudioParameterFloat*>(params.getUnchecked(1));
-        *delayTimeParam = delayTimeSlider->getValue();
-        processor.setDelayTime(*delayTimeParam);
-    }
     if (slider == delayFeedbackSlider.get()) {
         AudioParameterFloat* delayFeedbackParam = static_cast<AudioParameterFloat*>(params.getUnchecked(2));
         *delayFeedbackParam = delayFeedbackSlider->getValue();
