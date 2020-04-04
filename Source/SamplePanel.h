@@ -17,22 +17,29 @@
 //==============================================================================
 /*
 */
-class SamplePanel    : public Component, FilenameComponentListener
+class SamplePanel    : public Component, FilenameComponentListener, private Value::Listener
 {
 public:
-    SamplePanel(int windowLength);
+    SamplePanel(int windowLength, AudioProcessorValueTreeState& vts);
     ~SamplePanel();
 
     void paint (Graphics&) override;
     void resized() override;
     // For access in PluginProcessor
     AudioBuffer<float>* getSampleBuffer();
+    void setSamplePosition(float position);
     // Returns current position in sample in seconds
     double getSamplePosition();
     void setSampleRate(double sampleRate);
     void setWindowLength(float windowLength);
+    void setCurrentFilePath(String& path);
+    static Identifier currentFilePathID;
+    Value currentFilePath;
 
 private:
+    // State management
+    AudioProcessorValueTreeState& valueTreeState;
+    
     double sampleRate = 0.0;
     // Window length
     int windowLength = 0;
@@ -65,6 +72,8 @@ private:
 
     void filenameComponentChanged(FilenameComponent* fileComponentThatHasChanged) override;
     void loadFile(File file);
+
+    void valueChanged(Value& val) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePanel)
 };

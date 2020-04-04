@@ -10,9 +10,11 @@
 
 #include "SamplePanel.h"
 
+Identifier SamplePanel::currentFilePathID("currentFilePath");
+
 //==============================================================================
-SamplePanel::SamplePanel(int windowLength)
-    : thumbnailCache(5), thumbnail(512, formatManager, thumbnailCache)
+SamplePanel::SamplePanel(int windowLength, AudioProcessorValueTreeState& vts)
+    : thumbnailCache(5), thumbnail(512, formatManager, thumbnailCache), valueTreeState(vts)
 {
     this->windowLength = windowLength;
 
@@ -37,8 +39,12 @@ SamplePanel::SamplePanel(int windowLength)
     formatManager.registerBasicFormats();
     //thumbnail.addChangeListener(this);
 
+    // State management
+    currentFilePath.addListener(this);
+    //currentFilePath.referTo(valueTreeState.state.getPropertyAsValue(currentFilePathID, nullptr));
+
     // Preload sample for convenience
-    auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\betti.wav");
+    auto currentFile = new File("");
     filenameComponent->setCurrentFile(*currentFile, false, dontSendNotification);
     loadFile(*currentFile);
 
@@ -135,6 +141,22 @@ AudioBuffer<float>* SamplePanel::getSampleBuffer()
     return sampleBuffer.get();
 }
 
+void SamplePanel::setSamplePosition(float position)
+{
+    auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
+    // Map to sample 
+    double mapped = map(position, 0.0f, 1.0, 0.0, fileLengthInSeconds);
+    // Constrain to keep from going out of component bounds
+    if (mapped < 0.0f)
+        mapped = 0.0f;
+    if (mapped > fileLengthInSeconds)
+        mapped = fileLengthInSeconds;
+
+    // Set marker
+    transportSource.setPosition(mapped);
+    repaint();
+}
+
 double SamplePanel::getSamplePosition()
 {
     return transportSource.getCurrentPosition();
@@ -164,10 +186,17 @@ void SamplePanel::mouseEventUpdateSamplePosition(const MouseEvent& mouseEvent) {
     // Constrain to keep from going out of component bounds
     if (mapped < 0.0f)
         mapped = 0.0f;
-    if(mapped > fileLengthInSeconds)
+    if (mapped > fileLengthInSeconds)
         mapped = fileLengthInSeconds;
+
     // Set marker
     transportSource.setPosition(mapped);
+
+    // Set parameter as well to keep in sync
+     // Map to [0...1]
+    mapped = map(float(xPos), 0.0f, float(getWidth()), 0.0, 1.0);
+    valueTreeState.getParameterAsValue("position").setValue(mapped);
+
     repaint();
 }
 
@@ -180,6 +209,7 @@ void SamplePanel::loadFile(File file) {
 
     // Only accept wavs
     if (fileExtension == ".wav" || fileExtension == ".WAV") {
+        filenameComponent->setCurrentFile(file, false, dontSendNotification);
         ScopedPointer<AudioFormatReader> reader = formatManager.createReaderFor(file);
         // If file is valid load it and send callback to processor
         if (reader != 0)
@@ -203,10 +233,19 @@ void SamplePanel::loadFile(File file) {
     }
     else {
         // Reset file component
-        filenameComponent->setCurrentFile({}, false, juce::NotificationType::dontSendNotification);
+        filenameComponent->setCurrentFile({}, false, dontSendNotification);
         // Show info text
         fileLoadedState = rejected;
         repaint();
+    }
+}
+
+void SamplePanel::valueChanged(Value& val)
+{
+    if (val.toString() != "") {
+        valueTreeState.state.setProperty(currentFilePathID, val.toString(), nullptr);
+        auto currentFile = new File(val.toString());
+        loadFile(*currentFile);
     }
 }
 
@@ -216,8 +255,14 @@ void SamplePanel::setWindowLength(float windowLength) {
     repaint();
 }
 
+void SamplePanel::setCurrentFilePath(String& path)
+{
+    currentFilePath.setValue(path);
+}
+
 void SamplePanel::filenameComponentChanged(FilenameComponent* fileComponentThatHasChanged) 
 {
-    if (fileComponentThatHasChanged == filenameComponent.get())
-        loadFile(filenameComponent->getCurrentFile());
+    if (fileComponentThatHasChanged == filenameComponent.get()) {
+        currentFilePath.setValue(filenameComponent->getCurrentFile().getFullPathName());
+    }
 }

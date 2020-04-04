@@ -13,27 +13,37 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "PluginProcessor.h"
 
+typedef AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
+
 /**
 */
-class Dafx_assignment_2AudioProcessorEditor  : public AudioProcessorEditor, Slider::Listener, KeyListener
+class Dafx_assignment_2AudioProcessorEditor  : public AudioProcessorEditor, KeyListener
 {
 public:
-    Dafx_assignment_2AudioProcessorEditor (Dafx_assignment_2AudioProcessor&);
+    Dafx_assignment_2AudioProcessorEditor (Dafx_assignment_2AudioProcessor&, AudioProcessorValueTreeState& vts);
     ~Dafx_assignment_2AudioProcessorEditor();
 
     void paint (Graphics&) override;
     void resized() override;
-    void sliderValueChanged(Slider* slider) override;
+    //void sliderValueChanged(Slider* slider) override;
 
 private:
     Dafx_assignment_2AudioProcessor& processor;
+    
+    // State management (persistence)
+    AudioProcessorValueTreeState& valueTreeState;
+    std::unique_ptr<SliderAttachment> positionAttachment;
+    std::unique_ptr<SliderAttachment> windowLengthAttachment;
+    std::unique_ptr<SliderAttachment> delayFeedbackAttachment;
+    std::unique_ptr<SliderAttachment> delayWetAttachment;
+
 
     // UI Elements
     // Sliders
-    std::unique_ptr<Slider> windowLengthSlider;
-    std::unique_ptr<Slider> delayTimeSlider;
-    std::unique_ptr<Slider> delayFeedbackSlider;
-    std::unique_ptr<Slider> delayWetSlider;
+    Slider positionSlider;
+    Slider windowLengthSlider;
+    Slider delayFeedbackSlider;
+    Slider delayWetSlider;
 
 
     // Panel that holds audio sample

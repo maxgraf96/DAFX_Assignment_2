@@ -19,7 +19,7 @@
 //==============================================================================
 /**
 */
-class Dafx_assignment_2AudioProcessor : public AudioProcessor
+class Dafx_assignment_2AudioProcessor : public AudioProcessor, private AudioProcessorValueTreeState::Listener
 {
 public:
     //==============================================================================
@@ -66,6 +66,10 @@ public:
     void setDelayWet(float delayWet);
 
 private:
+    // State management
+    AudioProcessorValueTreeState parameters;
+    void parameterChanged(const String& parameterID, float newValue) override;
+
     // Whether there should be any audio coming through
     bool isPlaying = false;
     bool isCapturing = false;
@@ -75,9 +79,6 @@ private:
 
     // Window size (length)
     int windowLength = WINDOW_LENGTH_MIN; 
-    // Current PLAYING position (in terms from window start to end)
-    // This is used to transfer data from the global sample buffer to the plugin buffer
-    int playingPosition = 0;
 
     // SamplePanel component
     std::unique_ptr<SamplePanel> samplePanel;
@@ -85,32 +86,17 @@ private:
 
     // Control parameters
     // Controls the sample position in seconds
-    AudioParameterFloat* windowLengthParam;
-    AudioParameterInt* delayTimeParam;
-    AudioParameterFloat* delayFeedbackParam;
-    AudioParameterFloat* delayWetParam;
+    float* positionParam = nullptr;
+    float* windowLengthParam = nullptr;
+    float* delayFeedbackParam = nullptr;
+    float* delayWetParam = nullptr;
 
     // Polyphony
     const int NUM_VOICES = 16;
     std::vector<std::unique_ptr<Voice>> voices = {};
 
     // Pitch detection
-    dywapitchtracker pitchtracker;
-    // Used to calculate avg frequency over n_frames
-    // int n_frames = 4;
-    // This stores the detected pitch of the sound in the capture buffer
-    // It is defined by the width of the window
-    // double currentPitch = 0.0;
-    // Index storing where the buffer should end to get the desired frequency
-    // Set in playNote()
-    bool playFromPlaybackBuffer = false;
-    int playbackBufferSamplePosition = 0;
-
-    // MIDI stuff
-    double midiStartTime = 0.0;
-    const int midiChannel = 0;
-    MidiBuffer midiBuffer;
-    int previousSampleNumber = 0;
+    // dywapitchtracker pitchtracker;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

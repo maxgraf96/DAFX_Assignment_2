@@ -22,44 +22,50 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
                      #endif
                        )
 #endif
+    , parameters(*this,
+        nullptr, // No undo manager
+        Identifier("DAFX2"),
+        {
+            std::make_unique<AudioParameterFloat>(
+                "position",
+                "Sample Position",
+                0.0,
+                1.0,
+                0.0
+                ),
+            std::make_unique<AudioParameterFloat>(
+                "windowLength",
+                "Window Length",
+                0.0,
+                1.0,
+                0.1),
+            std::make_unique<AudioParameterFloat>(
+                "delayFeedback",
+                "Delay Feedback",
+                0.0,
+                2.0,
+                1.0),
+            std::make_unique<AudioParameterFloat>(
+                "delayWet",
+                "Delay Wet",
+                0.0,
+                1.0,
+                1.0)
+        })
 {
     // Initialise sample panel
-    samplePanel.reset(new SamplePanel(windowLength));
+    samplePanel.reset(new SamplePanel(windowLength, parameters));
     sampleBuffer = samplePanel->getSampleBuffer();
 
-    // Initialise AudioParameters
-    windowLengthParam = new AudioParameterFloat(
-        "position",
-        "Position",
-        0.0,
-        1.0,
-        0.1);
-    delayTimeParam = new AudioParameterInt(
-        "delayTime",
-        "Delay Time",
-        0,
-        48000 / 50, // 50Hz
-        960);
-    delayFeedbackParam = new AudioParameterFloat(
-        "delayFeedback",
-        "Delay Feedback",
-        0.0,
-        2.0,
-        1.0);
-    delayWetParam = new AudioParameterFloat(
-        "delayWet",
-        "Delay Wet",
-        0.0,
-        1.0,
-        1.0);
-    
-    addParameter(windowLengthParam);
-    addParameter(delayTimeParam);
-    addParameter(delayFeedbackParam);
-    addParameter(delayWetParam);
+    // Initialise listeners for parameters
+    parameters.addParameterListener("position", this);
+    parameters.addParameterListener("windowLength", this);
+    parameters.addParameterListener("delayFeedback", this);
+    parameters.addParameterListener("delayWet", this);
 
-    // Initialise midi
-    midiStartTime = Time::getMillisecondCounterHiRes() * 0.001;
+    windowLengthParam = parameters.getRawParameterValue("windowLength");
+    delayFeedbackParam = parameters.getRawParameterValue("delayFeedback");
+    delayWetParam = parameters.getRawParameterValue("delayWet");
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -141,11 +147,13 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     delayProcessContext->sampleRate = sampleRate;
 
     // Prepare pitch detection object
-    dywapitch_inittracking(&pitchtracker);
+    // dywapitch_inittracking(&pitchtracker);
 
     // Initialise 16 voices
     for (int voice = 0; voice < NUM_VOICES; voice++) {
         voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *delayProcessContext, int(2 * sampleRate))));
+        voices[voice]->setDelayFeedback(*delayFeedbackParam);
+        voices[voice]->setDelayWet(*delayWetParam);
     }
 }
 
@@ -258,6 +266,22 @@ void Dafx_assignment_2AudioProcessor::setDelayWet(float delayWet) {
         voice->setDelayWet(delayWet);
 }
 
+void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID, float newValue)
+{
+    if (parameterID == "position") {
+        samplePanel->setSamplePosition(newValue);
+    }
+    if (parameterID == "windowLength") {
+        samplePanel->setWindowLength(newValue);
+    }
+    if (parameterID == "delayFeedback") {
+        setDelayFeedback(newValue);
+    }
+    if (parameterID == "delayWet") {
+        setDelayWet(newValue);
+    }
+}
+
 SamplePanel* Dafx_assignment_2AudioProcessor::getSamplePanel()
 {
     return samplePanel.get();
@@ -271,21 +295,32 @@ bool Dafx_assignment_2AudioProcessor::hasEditor() const
 
 AudioProcessorEditor* Dafx_assignment_2AudioProcessor::createEditor()
 {
-    return new Dafx_assignment_2AudioProcessorEditor (*this);
+    return new Dafx_assignment_2AudioProcessorEditor (*this, parameters);
 }
 
 //==============================================================================
 void Dafx_assignment_2AudioProcessor::getStateInformation (MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
+    // Store state when closing plugin
+    auto state = parameters.copyState();
+    std::unique_ptr<XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData);
 }
 
 void Dafx_assignment_2AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
+    // Restore saved state
+    std::unique_ptr<XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
+    if (xmlState.get() != nullptr)
+        if (xmlState->hasTagName(parameters.state.getType()))
+            parameters.replaceState(ValueTree::fromXml(*xmlState));
+
+    // Have to manually set here because state loading happens after all components are constructed
+    Value val = parameters.state.getPropertyAsValue("currentFilePath", nullptr);
+    auto act = val.getValue().toString();
+    if (act != "") {
+        samplePanel->setCurrentFilePath(act);
+    }
 }
 
 //==============================================================================
@@ -294,15 +329,3 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new Dafx_assignment_2AudioProcessor();
 }
-
-// Maybe needed later
-// Estimate pitch
-//currentPitch = dywapitch_computepitch(&pitchtracker, getSampleRate(), captureBufferCopy.get(), 0, numSamples * n_frames);
-//// Print average pitch
-//if (currentPitch > 0.0) {
-//    auto note = int(log(currentPitch / 440.0) / log(2) * 12 + 69);
-//    auto octave = note / 12 - 1;
-//    juce::String notes = "C C#D D#E F F#G G#A A#B ";
-//    auto note_str = notes.substring((note % 12) * 2, (note % 12) * 2 + 2) + juce::String(octave);
-//    DBG(note_str);
-//}
