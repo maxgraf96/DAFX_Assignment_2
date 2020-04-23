@@ -13,44 +13,70 @@
 
 Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
-                     #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  AudioChannelSet::stereo(), true)
-                      #endif
-                       .withOutput ("Output", AudioChannelSet::stereo(), true)
-                     #endif
-                       )
+    : AudioProcessor(BusesProperties()
+#if ! JucePlugin_IsMidiEffect
+#if ! JucePlugin_IsSynth
+        .withInput("Input", AudioChannelSet::stereo(), true)
+#endif
+        .withOutput("Output", AudioChannelSet::stereo(), true)
+#endif
+    )
 #endif
     , parameters(*this,
         nullptr, // No undo manager
         Identifier("DAFX2"),
         {
-            std::make_unique<AudioParameterFloat>(
-                "position",
-                "Sample Position",
-                0.0,
-                1.0,
-                0.0
-                ),
-            std::make_unique<AudioParameterFloat>(
-                "windowLength",
-                "Window Length",
-                0.0,
-                1.0,
-                0.1),
-            std::make_unique<AudioParameterFloat>(
-                "delayFeedback",
-                "Delay Feedback",
-                0.0,
-                2.0,
-                1.0),
-            std::make_unique<AudioParameterFloat>(
-                "delayWet",
-                "Delay Wet",
-                0.0,
-                1.0,
-                1.0)
+        std::make_unique<AudioParameterFloat>(
+            "position",
+            "Sample Position",
+            0.0,
+            1.0,
+            0.0
+            ),
+        std::make_unique<AudioParameterFloat>(
+            "windowLength",
+            "Window Length",
+            0.0,
+            1.0,
+            0.1),
+        std::make_unique<AudioParameterFloat>(
+            "delayFeedback",
+            "Delay Feedback",
+            0.5,
+            1.0,
+            0.98),
+        std::make_unique<AudioParameterBool>(
+            "mode",
+            "Mode",
+            false),
+        std::make_unique<AudioParameterInt>(
+            "attack",
+            "Attack",
+            0,
+            2000,
+            0
+        ),
+        std::make_unique<AudioParameterInt>(
+            "decay",
+            "Decay",
+            0,
+            1000,
+            0
+        ),
+        std::make_unique<AudioParameterFloat>(
+            "sustain",
+            "Sustain",
+            0.0,
+            1.0,
+            1.0
+        ),
+        std::make_unique<AudioParameterInt>(
+            "release",
+            "Release",
+            0,
+            3000,
+            0
+        ),
         })
 {
     // Initialise sample panel
@@ -61,12 +87,20 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     parameters.addParameterListener("position", this);
     parameters.addParameterListener("windowLength", this);
     parameters.addParameterListener("delayFeedback", this);
-    parameters.addParameterListener("delayWet", this);
+    parameters.addParameterListener("mode", this);
+    parameters.addParameterListener("attack", this);
+    parameters.addParameterListener("decay", this);
+    parameters.addParameterListener("sustain", this);
+    parameters.addParameterListener("release", this);
 
     positionParam = parameters.getRawParameterValue("position");
     windowLengthParam = parameters.getRawParameterValue("windowLength");
     delayFeedbackParam = parameters.getRawParameterValue("delayFeedback");
-    delayWetParam = parameters.getRawParameterValue("delayWet");
+    modeParam = parameters.getRawParameterValue("mode");
+    attackParam = parameters.getRawParameterValue("attack");
+    decayParam = parameters.getRawParameterValue("decay");
+    sustainParam = parameters.getRawParameterValue("sustain");
+    releaseParam = parameters.getRawParameterValue("release");
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -147,14 +181,17 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     delayProcessContext->numChannels = 2;
     delayProcessContext->sampleRate = sampleRate;
 
-    // Prepare pitch detection object
-    // dywapitch_inittracking(&pitchtracker);
+    // Clear voices (for some reason prepareToPlay() can be called twice per startup)
+    voices.clear();
 
     // Initialise 16 voices
+    bool isADSRMode = *modeParam > 0.0 ? true : false;
     for (int voice = 0; voice < NUM_VOICES; voice++) {
         voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *delayProcessContext, int(2 * sampleRate))));
         voices[voice]->setDelayFeedback(*delayFeedbackParam);
-        voices[voice]->setDelayWet(*delayWetParam);
+        voices[voice]->setDelayWet(1.0);
+        voices[voice]->setADSRParams(adsrParams);
+        voices[voice]->setMode(isADSRMode);
     }
 }
 
@@ -209,19 +246,34 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
             m = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber(), newVel);
 
             auto noteNumber = m.getNoteNumber();
-            // TODO: Find next free voice and trigger note
+
+            // Check if note already exists. If so, retrigger
+            for (auto&& voice : voices) {
+                if (voice->isPlaying() && voice->getNoteNumber() == noteNumber) {
+                    voice->noteOn(noteNumber, samplePanelStartIdx, windowLength);
+                    goto next;
+                }
+            }
+
+            // If it's a completely new note fine the next free voice and trigger
             for (auto&& voice : voices) {
                 if (!voice->isPlaying()) {
                     voice->noteOn(noteNumber, samplePanelStartIdx, windowLength);
-                    goto rest;
+                    goto next;
                 }
             }
         }
-        else if (m.isNoteOff())
+        if (m.isNoteOff())
         {
-            // Maybe later
+            // Get voice for note number
+            for (auto&& voice : voices) {
+                if (voice->isPlaying() && voice->getNoteNumber() == m.getNoteNumber()) {
+                    voice->noteOff();
+                    goto next;
+                }
+            }
         }
-    rest:
+        next:
         processedMidi.addEvent(m, time);
     }
     midiMessages.swapWith(processedMidi);
@@ -262,11 +314,6 @@ void Dafx_assignment_2AudioProcessor::setDelayFeedback(float delayFeedback) {
         voice->setDelayFeedback(delayFeedback);
 }
 
-void Dafx_assignment_2AudioProcessor::setDelayWet(float delayWet) {
-    for (auto&& voice : voices)
-        voice->setDelayWet(delayWet);
-}
-
 void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID, float newValue)
 {
     if (parameterID == "position") {
@@ -278,8 +325,45 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
     if (parameterID == "delayFeedback") {
         setDelayFeedback(newValue);
     }
-    if (parameterID == "delayWet") {
-        setDelayWet(newValue);
+    if (parameterID == "mode") {
+        bool isADSRMode = newValue > 0.0;
+        // Set voices accordingly
+        for (auto&& voice : voices) {
+            voice->setMode(isADSRMode);
+        }
+        if (isADSRMode) {
+            // Pad mode
+            // Set delay feedback to 1.0 as sound over time will be controlled by ADSR envelope
+            parameters.getParameterAsValue("delayFeedback").setValue(1.0);
+        }
+        else {
+            // String mode
+            parameters.getParameterAsValue("delayFeedback").setValue(0.99);
+        }
+    }
+    if (parameterID == "attack") {
+        adsrParams.attack = newValue * 0.001;
+        for (auto&& voice : voices) {
+            voice->setADSRParams(adsrParams);
+        }
+    }
+    if (parameterID == "decay") {
+        adsrParams.decay = newValue * 0.001;
+        for (auto&& voice : voices) {
+            voice->setADSRParams(adsrParams);
+        }
+    }
+    if (parameterID == "sustain") {
+        adsrParams.sustain = newValue;
+        for (auto&& voice : voices) {
+            voice->setADSRParams(adsrParams);
+        }
+    }
+    if (parameterID == "release") {
+        adsrParams.release = newValue * 0.001;
+        for (auto&& voice : voices) {
+            voice->setADSRParams(adsrParams);
+        }
     }
 }
 
@@ -325,6 +409,12 @@ void Dafx_assignment_2AudioProcessor::setStateInformation (const void* data, int
         // Update position as well
         samplePanel->setSamplePositionAbsolute(*positionParam);
     } 
+
+    // Convert from ms to seconds
+    adsrParams.attack = *attackParam * 0.001;
+    adsrParams.decay = *decayParam * 0.001;
+    adsrParams.sustain = *sustainParam;
+    adsrParams.release = *releaseParam * 0.001;
 }
 
 //==============================================================================

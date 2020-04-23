@@ -63,7 +63,6 @@ public:
 
     // Delay methods
     void setDelayFeedback(float delayFeedback);
-    void setDelayWet(float delayWet);
 
 private:
     // State management
@@ -89,7 +88,14 @@ private:
     float* positionParam = nullptr;
     float* windowLengthParam = nullptr;
     float* delayFeedbackParam = nullptr;
-    float* delayWetParam = nullptr;
+    float* modeParam = nullptr;
+    float* attackParam = nullptr;
+    float* decayParam = nullptr;
+    float* sustainParam = nullptr;
+    float* releaseParam = nullptr;
+
+    // ADSR parameters
+    ADSR::Parameters adsrParams;
 
     // Polyphony
     const int NUM_VOICES = 16;

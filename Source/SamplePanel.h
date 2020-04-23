@@ -17,7 +17,7 @@
 //==============================================================================
 /*
 */
-class SamplePanel    : public Component, FilenameComponentListener, private Value::Listener
+class SamplePanel    : public Component, FilenameComponentListener, private Value::Listener, ChangeListener
 {
 public:
     SamplePanel(int windowLength, AudioProcessorValueTreeState& vts);
@@ -36,7 +36,6 @@ public:
     void setCurrentFilePath(String& path);
     static Identifier currentFilePathID;
     Value currentFilePath;
-
 private:
     // State management
     AudioProcessorValueTreeState& valueTreeState;
@@ -77,6 +76,10 @@ private:
     void loadFile(File file);
 
     void valueChanged(Value& val) override;
+
+    // Listen to changes on the thumbnail to repaint when necessary
+    void changeListenerCallback(ChangeBroadcaster* source) override;
+    void thumbnailChanged();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePanel)
 };

@@ -27,9 +27,6 @@ SamplePanel::SamplePanel(int windowLength, AudioProcessorValueTreeState& vts)
     filenameComponent.reset(
         new FilenameComponent("file", {}, false, false, false, "*.wav", {}, "Browse for sample")
     );
-    // Set default folder for convenience for now
-    auto defaultFolder = new File("C:\\Users\\Music\\Ableton\\Mixes\\eam");
-    filenameComponent->setDefaultBrowseTarget(*defaultFolder);
     
     // Add file picker component to UI
     addAndMakeVisible(filenameComponent.get());
@@ -37,16 +34,17 @@ SamplePanel::SamplePanel(int windowLength, AudioProcessorValueTreeState& vts)
 
     // Add waveform display
     formatManager.registerBasicFormats();
-    //thumbnail.addChangeListener(this);
 
     // State management
     currentFilePath.addListener(this);
-    //currentFilePath.referTo(valueTreeState.state.getPropertyAsValue(currentFilePathID, nullptr));
 
     // Preload sample for convenience
-    auto currentFile = new File("");
+    auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\sweetrelease.wav");
     filenameComponent->setCurrentFile(*currentFile, false, dontSendNotification);
     loadFile(*currentFile);
+
+    // Listen to thumbnail changes
+    thumbnail.addChangeListener(this);
 
     // Set component size
     setSize(1024, 200);
@@ -95,7 +93,7 @@ void SamplePanel::paintIfNoFileLoaded(Graphics& g, const Rectangle<int>& thumbna
     g.setColour(Colours::darkgrey);
     g.fillRect(thumbnailBounds);
     g.setColour(Colours::white);
-    g.drawFittedText("No File Loaded", thumbnailBounds, Justification::centred, 1.0f);
+    g.drawFittedText("Click to load sample", thumbnailBounds, Justification::centred, 1.0f);
 }
 
 void SamplePanel::paintIfFileLoaded(Graphics& g, const Rectangle<int>& thumbnailBounds)
@@ -183,6 +181,20 @@ void SamplePanel::mouseDrag(const MouseEvent& mouseEvent)
 }
 
 void SamplePanel::mouseEventUpdateSamplePosition(const MouseEvent& mouseEvent) {
+    // If no sample loaded open window
+    if (fileLoadedState != loaded) {
+        FileChooser myChooser("Please select the file you want to load...",
+            File::getSpecialLocation(File::userHomeDirectory),
+            "*.wav");
+
+        if (myChooser.browseForFileToOpen())
+        {
+            File file(myChooser.getResult());
+            currentFilePath.setValue(file.getFullPathName());
+        }
+        return;
+    }
+
     // Get x position in terms of component
     auto xPos = mouseEvent.getPosition().getX();
     auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
@@ -258,6 +270,18 @@ void SamplePanel::valueChanged(Value& val)
         auto currentFile = new File(val.toString());
         loadFile(*currentFile);
     }
+}
+
+void SamplePanel::changeListenerCallback(ChangeBroadcaster* source)
+{
+    if (source == &thumbnail) {
+        thumbnailChanged();
+    }
+}
+
+void SamplePanel::thumbnailChanged()
+{
+    repaint();
 }
 
 void SamplePanel::setWindowLength(float windowLength) {
