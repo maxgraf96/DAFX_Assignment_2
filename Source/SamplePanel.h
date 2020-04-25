@@ -79,6 +79,7 @@ private:
 
     // Listen to changes on the thumbnail to repaint when necessary
     void changeListenerCallback(ChangeBroadcaster* source) override;
+    void transportSourceChanged();
     void thumbnailChanged();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePanel)

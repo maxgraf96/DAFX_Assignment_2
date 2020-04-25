@@ -15,6 +15,7 @@
 #include "Delay.h"
 #include "dywapitchtrack-master/src/dywapitchtrack.h"
 #include "Voice.h"
+#include "Constants.h"
 
 //==============================================================================
 /**
@@ -98,8 +99,10 @@ private:
     ADSR::Parameters adsrParams;
 
     // Polyphony
-    const int NUM_VOICES = 16;
     std::vector<std::unique_ptr<Voice>> voices = {};
+    // Map from note voices to notenumber
+    // So: { -1 -1 74 -1 -1 ... } means that the third voice is currently playing MIDI note 74
+    std::array<int, NUM_VOICES> noteNumberForVoice = {};
 
     // Pitch detection
     // dywapitchtracker pitchtracker;

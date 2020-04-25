@@ -187,11 +187,16 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     // Initialise 16 voices
     bool isADSRMode = *modeParam > 0.0 ? true : false;
     for (int voice = 0; voice < NUM_VOICES; voice++) {
-        voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *delayProcessContext, int(2 * sampleRate))));
+        voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *delayProcessContext, int(2 * sampleRate), noteNumberForVoice)));
         voices[voice]->setDelayFeedback(*delayFeedbackParam);
         voices[voice]->setDelayWet(1.0);
         voices[voice]->setADSRParams(adsrParams);
-        voices[voice]->setMode(isADSRMode);
+        voices[voice]->setADSRMode(isADSRMode);
+
+        // Initialise note number to voice map
+        // -1 means "not playing", if a voice is playing this array will contain the MIDI
+        // note number the voice is currently playing
+        noteNumberForVoice[voice] = -1;
     }
 }
 
@@ -248,32 +253,51 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
             auto noteNumber = m.getNoteNumber();
 
             // Check if note already exists. If so, retrigger
-            for (auto&& voice : voices) {
-                if (voice->isPlaying() && voice->getNoteNumber() == noteNumber) {
-                    voice->noteOn(noteNumber, samplePanelStartIdx, windowLength);
-                    goto next;
+            bool isRetrigger = false;
+            int voiceToBeRetriggeredIdx = -1;
+            for (int i = 0; i < NUM_VOICES; i++) {
+                if (noteNumberForVoice[i] == noteNumber) {
+                    // Current incoming note is alreay playing => retrigger
+                    isRetrigger = true;
+                    voiceToBeRetriggeredIdx = i;
+                    break;
                 }
             }
 
-            // If it's a completely new note fine the next free voice and trigger
-            for (auto&& voice : voices) {
-                if (!voice->isPlaying()) {
-                    voice->noteOn(noteNumber, samplePanelStartIdx, windowLength);
-                    goto next;
+            if (isRetrigger) {
+                voices[voiceToBeRetriggeredIdx]->noteOn(noteNumber, samplePanelStartIdx, windowLength);
+                
+            }
+            else {
+                // If it's a completely new note find the next free voice and trigger
+                for (int i = 0; i < NUM_VOICES; i++) {
+                    if (!voices[i]->isPlaying()) {
+                        voices[i]->noteOn(noteNumber, samplePanelStartIdx, windowLength);
+                        voiceToBeRetriggeredIdx = i;
+                        break;
+                    }
                 }
+            }
+
+            // Set in map
+            if (voiceToBeRetriggeredIdx > -1) {
+                noteNumberForVoice[voiceToBeRetriggeredIdx] = noteNumber;
+            }
+            else {
+                // More incoming notes than available slot in voices array
+                // Either don't play or replace longest playing note
             }
         }
         if (m.isNoteOff())
         {
             // Get voice for note number
-            for (auto&& voice : voices) {
-                if (voice->isPlaying() && voice->getNoteNumber() == m.getNoteNumber()) {
-                    voice->noteOff();
-                    goto next;
+            for (int i = 0; i < NUM_VOICES; i++) {
+                if (voices[i]->isPlaying() && voices[i]->getNoteNumber() == m.getNoteNumber()) {
+                    voices[i]->noteOff();
+                    break;
                 }
             }
         }
-        next:
         processedMidi.addEvent(m, time);
     }
     midiMessages.swapWith(processedMidi);
@@ -329,7 +353,7 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
         bool isADSRMode = newValue > 0.0;
         // Set voices accordingly
         for (auto&& voice : voices) {
-            voice->setMode(isADSRMode);
+            voice->setADSRMode(isADSRMode);
         }
         if (isADSRMode) {
             // Pad mode

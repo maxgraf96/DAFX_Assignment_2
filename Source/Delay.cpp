@@ -26,12 +26,16 @@ void Delay::prepare(const juce::dsp::ProcessSpec& spec)
 
     // Use first order LP for now
     filterCoefs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, float(18000));
+    tuningFilterCoefs = new juce::dsp::IIR::Coefficients<float>(1.0f, C, C, 1.0);
 
     for (auto& f : filters)
     {
         f.prepare(spec);
         f.coefficients = filterCoefs;
     }
+
+    for (auto& f : tuningFilters)
+        f.prepare(spec);
 }
 
 void Delay::process(AudioBuffer<float>& buffer) noexcept
@@ -47,47 +51,37 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
         auto& dline = delayLines[ch];
         auto delayTime = delayTimes[ch];
         auto& filter = filters[ch];
-
-        auto prevC = 0.0;
+        auto& tuningFilter = tuningFilters[ch];
 
         for (size_t i = 0; i < numSamples; ++i)
         {
+            // Input from delay line
             auto delayedSample = filter.processSample(dline.get(delayTime));
+
+            // Fine-tune the string using an allpass filter as described in the KS-extension paper
+            float tuned = filter.processSample(delayedSample);
+
+            // Input from main buffer
             auto inputSample = input[i];
-            auto dlineInputSample = std::tanh(inputSample + feedback * delayedSample);
+            auto dlineInputSample = inputSample + feedback * tuned;
+            // Hard-limit the amplitude output
+            if (dlineInputSample < -1.0f)
+                dlineInputSample = -1.0f;
+            if (dlineInputSample > 1.0f)
+                dlineInputSample = 1.0f;
             dline.push(dlineInputSample);
             auto outputSample = wetLevel * delayedSample;
-
             output[i] = outputSample;
         }
     }
-
-    auto tuneCopy = std::make_unique<AudioBuffer<float>>();
-    tuneCopy->makeCopyOf(buffer);
-    
-    for (size_t ch = 0; ch < numChannels; ++ch)
-    {
-        auto reader = buffer.getWritePointer(ch);
-        auto writer = tuneCopy->getWritePointer(ch);
-        auto prevC = 0.0;
-
-        for (size_t i = 0; i < numSamples; ++i)
-        {
-            auto prevOut = writer[i - 1];
-            if (i == 0)
-                prevOut = 0.0;
-
-            float tuned = fineTune(reader[i], reader[i - 1], prevOut);
-            writer[i] = tuned;
-        }
-    }
-
-    buffer.makeCopyOf(*tuneCopy);
 }
 
 void Delay::reset() noexcept
 {
     for (auto& f : filters)
+        f.reset();
+
+    for (auto& f : tuningFilters)
         f.reset();
 
     for (auto& dline : delayLines) 
@@ -128,13 +122,49 @@ void Delay::setDelayTime(size_t channel, int newValueSamples)
 
     jassert(newValueSamples >= 0);
     delayTimes[channel] = newValueSamples;
+    delayTimesSample[channel] = newValueSamples;
 
-    updateDelayTime();
+    //updateDelayTime();
 }
 
-void Delay::setFundamentalFrequency(double f0)
+void Delay::prepareFineTune(double fundamentalFrequency)
 {
-    this->fundamentalFrequency = f0;
+    double phaseResponseLowpass = filterCoefs->getPhaseForFrequency(fundamentalFrequency, sampleRate);
+    float epsilon = 1.0 / sampleRate;
+    double samplePeriod = 1.0 / sampleRate;
+
+    double phaseDelayLowpass = -phaseResponseLowpass / (2.0 * MathConstants<double>::pi * fundamentalFrequency * samplePeriod);
+
+    // Calculate P1
+    auto P1 = sampleRate / fundamentalFrequency;
+
+    int N = int(floor(P1 - phaseDelayLowpass - epsilon));
+    setDelayTime(0, N);
+    setDelayTime(1, N);
+
+    double phaseDelayAllpass = P1 - N - phaseDelayLowpass;
+
+    // Calculate omega
+    double omega = MathConstants<double>::twoPi * fundamentalFrequency;
+
+    // Calculate C
+    double left = omega * samplePeriod;
+    double right = omega * samplePeriod * phaseDelayAllpass;
+    double dC = sin((left - right) / 2.0)
+        / sin((left + right) / 2.0);
+
+    C = static_cast<float>(dC);
+
+    // Allpass filter for tuning
+    
+
+    tuningFilterCoefs = new juce::dsp::IIR::Coefficients<float>(1.0f, C, C, 1.0);
+    for (auto& f : tuningFilters)
+        f.coefficients = tuningFilterCoefs;
+
+    auto p1check = N + phaseDelayLowpass + phaseDelayAllpass;
+
+    auto test = 2;
 }
 
 void Delay::setSampleRate(double sr)
@@ -152,7 +182,7 @@ void Delay::updateDelayLineSize() {
 void Delay::updateDelayTime() noexcept {
     for (size_t ch = 0; ch < maxNumChannels; ++ch) {
         //delayTimesSample[ch] = (size_t)juce::roundToInt(delayTimes[ch] * sampleRate);
-        delayTimesSample[ch] = delayTimesSample[ch];
+        delayTimesSample[ch] = delayTimes[ch];
     }
 }
 
@@ -162,29 +192,7 @@ void Delay::updateDelayTime() noexcept {
 */
 float Delay::fineTune(float input, float prevInput, float prevOutput)
 {
-    double phaseResponseForFrequency = filterCoefs->getPhaseForFrequency(fundamentalFrequency, sampleRate);
-    float phaseDelay = static_cast<float>(-(phaseResponseForFrequency / fundamentalFrequency)) * sampleRate;
-    float epsilon = 0.01;
-    auto delayTimeSamples = delayTimes[0];
-
-    auto samplePeriod = 1.0 / sampleRate;
-
-    // Calculate P1
-    auto P1 = sampleRate / fundamentalFrequency;
-
-    float N = floorf(P1 - phaseDelay - epsilon);
-    // Test, TODO maybe change the 0.5 part
-    auto Pc = P1 - N - phaseDelay;
-
-    // Calculate omega
-    float omega = 2.0 * MathConstants<float>::pi * fundamentalFrequency;
-
-    // Calculate C
-    float C = sin( (omega * samplePeriod - omega * samplePeriod * Pc) / 2.0 )
-        / sin( (omega * samplePeriod + omega * samplePeriod * Pc) / 2.0 );
-
     // Sample output
     float out = C * input + prevInput - C * prevOutput;
-    
     return out;
 }

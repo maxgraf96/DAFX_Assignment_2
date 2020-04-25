@@ -26,7 +26,7 @@ public:
     void setWetLevel(float newValue) noexcept;
     void setDelayTime(size_t channel, int newValue);
 
-    void setFundamentalFrequency(double f0);
+    void prepareFineTune(double fundamentalFrequency);
     void setSampleRate(double sr);
 
 private:
@@ -40,9 +40,12 @@ private:
     std::array<juce::dsp::IIR::Filter<float>, 2> filters;
     juce::dsp::IIR::Coefficients<float>::Ptr filterCoefs;
 
+    // Allpass filters for tuning
+    std::array<juce::dsp::IIR::Filter<float>, 2> tuningFilters;
+    juce::dsp::IIR::Coefficients<float>::Ptr tuningFilterCoefs;
+
     double sampleRate{ 44.1e3 };
     float maxDelayTime{ float(2) };
-    double fundamentalFrequency = -1.0;
 
     void updateDelayLineSize();
 
@@ -50,4 +53,7 @@ private:
     
     // Fine-tune mechanism described in the KS extension paper
     float fineTune(float input, float prevInput, float prevOutput);
+    float C = -1.0f;
+    float prevIn = 0.0f;
+    float prevOut = 0.0f;
 };

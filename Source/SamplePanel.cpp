@@ -44,6 +44,7 @@ SamplePanel::SamplePanel(int windowLength, AudioProcessorValueTreeState& vts)
     loadFile(*currentFile);
 
     // Listen to thumbnail changes
+    transportSource.addChangeListener(this);
     thumbnail.addChangeListener(this);
 
     // Set component size
@@ -152,7 +153,8 @@ void SamplePanel::setSamplePosition(float position)
 
     // Set marker
     transportSource.setPosition(mapped);
-    repaint();
+    // Thread-safe repaint
+    transportSource.sendChangeMessage();
 }
 
 void SamplePanel::setSamplePositionAbsolute(float position)
@@ -274,9 +276,13 @@ void SamplePanel::valueChanged(Value& val)
 
 void SamplePanel::changeListenerCallback(ChangeBroadcaster* source)
 {
-    if (source == &thumbnail) {
-        thumbnailChanged();
-    }
+    if (source == &transportSource) transportSourceChanged();
+    if (source == &thumbnail) thumbnailChanged();
+}
+
+void SamplePanel::transportSourceChanged()
+{
+    repaint();
 }
 
 void SamplePanel::thumbnailChanged()
@@ -287,7 +293,9 @@ void SamplePanel::thumbnailChanged()
 void SamplePanel::setWindowLength(float windowLength) {
     auto l = map(windowLength, 0.0, 1.0, WINDOW_LENGTH_MIN, WINDOW_LENGTH_MAX);
     this->windowLength = static_cast<int>(l);
-    repaint();
+
+    // Thread-safe repaint
+    transportSource.sendChangeMessage();
 }
 
 void SamplePanel::setCurrentFilePath(String& path)

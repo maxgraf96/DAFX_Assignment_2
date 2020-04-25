@@ -13,10 +13,11 @@
 #pragma once
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "Delay.h"
+#include "Constants.h"
 class Voice
 {
 public:
-    Voice(AudioBuffer<float>* sampleBuffer, juce::dsp::ProcessSpec delayProcessContext, int bufferLength);
+    Voice(AudioBuffer<float>* sampleBuffer, juce::dsp::ProcessSpec delayProcessContext, int bufferLength, std::array<int, NUM_VOICES>& noteNumberForVoice);
     // To trigger a voice
     void noteOn(int noteNumber, int samplePanelStartIdx, int windowLength);
     void noteOff();
@@ -28,17 +29,19 @@ public:
     int getNoteNumber();
     static const int NOT_PLAYING = -1;
     void setADSRParams(ADSR::Parameters& params);
-    void setMode(bool mode);
+    void setADSRMode(bool mode);
 
 private:
     // Normal (false) vs. ADSR (true)
-    bool mode = false;
+    bool adsrMode = false;
     bool playing = false;
     int noteNumber = -1;
     int sampleRate = 0;
     Delay delay;
     // The buffer storing the generated sound
     std::unique_ptr<AudioBuffer<float>> buffer;
+    // Extra buffer for processing
+    std::unique_ptr<AudioBuffer<float>> processBuffer;
 
     // Pointer to the buffer storing the sample
     // Same for all voices
@@ -49,4 +52,9 @@ private:
 
     // Volume envelope
     ADSR adsr;
+
+    // Reference to note number to voices map 
+    // This is necessary to have here because if the voice is in ADSR mode
+    // it needs to wait until the release phase is over before releasing the slot
+    std::array<int, NUM_VOICES>& noteNumberForVoice;
 };
