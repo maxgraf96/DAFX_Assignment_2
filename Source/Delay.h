@@ -28,6 +28,7 @@ public:
 
     void prepareFineTune(double fundamentalFrequency);
     void setSampleRate(double sr);
+    void setAdaptiveDecay(bool isAdaptiveDecay);
 
 private:
     const int maxNumChannels = 2;
@@ -53,7 +54,13 @@ private:
     
     // Fine-tune mechanism described in the KS extension paper
     float fineTune(float input, float prevInput, float prevOutput);
-    float C = -1.0f;
+    // The tuning coefficient
+    double C = -1.0f;
     float prevIn = 0.0f;
     float prevOut = 0.0f;
+
+    // The decay stretch factor
+    bool isAdaptiveDecay = false;
+    float stretchFactor = 1.0f;
+
 };

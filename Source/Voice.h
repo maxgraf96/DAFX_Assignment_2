@@ -14,12 +14,14 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "Delay.h"
 #include "Constants.h"
+#include "Utility.h"
+
 class Voice
 {
 public:
     Voice(AudioBuffer<float>* sampleBuffer, juce::dsp::ProcessSpec delayProcessContext, int bufferLength, std::array<int, NUM_VOICES>& noteNumberForVoice);
     // To trigger a voice
-    void noteOn(int noteNumber, int samplePanelStartIdx, int windowLength);
+    void noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int windowLength);
     void noteOff();
     // To copy samples from voice buffer to main audio buffer
     void play(AudioBuffer<float>& mainBuffer);
@@ -30,6 +32,8 @@ public:
     static const int NOT_PLAYING = -1;
     void setADSRParams(ADSR::Parameters& params);
     void setADSRMode(bool mode);
+
+	void setAdaptiveDecay(bool on);
 
 private:
     // Normal (false) vs. ADSR (true)

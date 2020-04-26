@@ -22,7 +22,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
 #endif
     )
 #endif
-    , parameters(*this,
+    ,parameters(*this,
         nullptr, // No undo manager
         Identifier("DAFX2"),
         {
@@ -42,7 +42,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
         std::make_unique<AudioParameterFloat>(
             "delayFeedback",
             "Delay Feedback",
-            0.5,
+            0.9,
             1.0,
             0.98),
         std::make_unique<AudioParameterBool>(
@@ -77,6 +77,14 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             3000,
             0
         ),
+        std::make_unique<AudioParameterBool>(
+            "fixVelocity",
+            "Set velocity to fixed 127",
+            false),
+        std::make_unique<AudioParameterBool>(
+            "stretchFactor",
+            "Adaptive decay of harmonics",
+            false)
         })
 {
     // Initialise sample panel
@@ -92,6 +100,8 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     parameters.addParameterListener("decay", this);
     parameters.addParameterListener("sustain", this);
     parameters.addParameterListener("release", this);
+    parameters.addParameterListener("fixVelocity", this);
+    parameters.addParameterListener("stretchFactor", this);
 
     positionParam = parameters.getRawParameterValue("position");
     windowLengthParam = parameters.getRawParameterValue("windowLength");
@@ -101,6 +111,8 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     decayParam = parameters.getRawParameterValue("decay");
     sustainParam = parameters.getRawParameterValue("sustain");
     releaseParam = parameters.getRawParameterValue("release");
+    fixVelocityParam = parameters.getRawParameterValue("fixVelocity");
+    stretchFactorParam = parameters.getRawParameterValue("stretchFactor");
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -186,12 +198,14 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
 
     // Initialise 16 voices
     bool isADSRMode = *modeParam > 0.0 ? true : false;
+    bool isAdaptiveDecay = !isADSRMode && *stretchFactorParam > 0.0f;
     for (int voice = 0; voice < NUM_VOICES; voice++) {
         voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *delayProcessContext, int(2 * sampleRate), noteNumberForVoice)));
         voices[voice]->setDelayFeedback(*delayFeedbackParam);
         voices[voice]->setDelayWet(1.0);
         voices[voice]->setADSRParams(adsrParams);
         voices[voice]->setADSRMode(isADSRMode);
+        voices[voice]->setAdaptiveDecay(isAdaptiveDecay);
 
         // Initialise note number to voice map
         // -1 means "not playing", if a voice is playing this array will contain the MIDI
@@ -241,14 +255,16 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     MidiBuffer processedMidi;
     int time;
     MidiMessage m;
-    int noteOnVel = 120;
 
     for (MidiBuffer::Iterator i(midiMessages); i.getNextEvent(m, time);)
     {
         if (m.isNoteOn())
         {
-            uint8 newVel = (uint8)noteOnVel;
-            m = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber(), newVel);
+            m = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber(), m.getVelocity());
+            uint8 velocity = m.getVelocity();
+            if (*fixVelocityParam == 0.0) {
+                velocity = 127;
+            }
 
             auto noteNumber = m.getNoteNumber();
 
@@ -265,14 +281,13 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
             }
 
             if (isRetrigger) {
-                voices[voiceToBeRetriggeredIdx]->noteOn(noteNumber, samplePanelStartIdx, windowLength);
-                
+                voices[voiceToBeRetriggeredIdx]->noteOn(noteNumber, velocity, samplePanelStartIdx, windowLength);
             }
             else {
                 // If it's a completely new note find the next free voice and trigger
                 for (int i = 0; i < NUM_VOICES; i++) {
                     if (!voices[i]->isPlaying()) {
-                        voices[i]->noteOn(noteNumber, samplePanelStartIdx, windowLength);
+                        voices[i]->noteOn(noteNumber, velocity, samplePanelStartIdx, windowLength);
                         voiceToBeRetriggeredIdx = i;
                         break;
                     }
@@ -359,10 +374,21 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
             // Pad mode
             // Set delay feedback to 1.0 as sound over time will be controlled by ADSR envelope
             parameters.getParameterAsValue("delayFeedback").setValue(1.0);
+
+            // Disable adaptive decay of harmonics
+            for (auto&& voice : voices) {
+                voice->setAdaptiveDecay(false);
+            }
         }
         else {
             // String mode
             parameters.getParameterAsValue("delayFeedback").setValue(0.99);
+
+            // Get previous value of decay stratching flag
+            bool isDecayStretching = *stretchFactorParam > 0.0f;
+            for (auto&& voice : voices) {
+                voice->setAdaptiveDecay(isDecayStretching);
+            }
         }
     }
     if (parameterID == "attack") {
@@ -387,6 +413,18 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
         adsrParams.release = newValue * 0.001;
         for (auto&& voice : voices) {
             voice->setADSRParams(adsrParams);
+        }
+    }
+    if(parameterID == "stretchFactor") {
+        if (newValue == 0.0f) {
+            for (auto&& voice : voices) {
+                voice->setAdaptiveDecay(false);
+            }
+        }
+        else {
+            for (auto&& voice : voices) {
+                voice->setAdaptiveDecay(true);
+            }
         }
     }
 }

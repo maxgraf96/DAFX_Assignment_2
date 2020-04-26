@@ -70,10 +70,6 @@ private:
     AudioProcessorValueTreeState parameters;
     void parameterChanged(const String& parameterID, float newValue) override;
 
-    // Whether there should be any audio coming through
-    bool isPlaying = false;
-    bool isCapturing = false;
-
     // Audio buffer holding sample
     AudioBuffer<float> *sampleBuffer = nullptr;
 
@@ -94,6 +90,9 @@ private:
     float* decayParam = nullptr;
     float* sustainParam = nullptr;
     float* releaseParam = nullptr;
+    // Whether to use the same velocity for every stroke
+    float* fixVelocityParam = nullptr;
+    float* stretchFactorParam = nullptr;
 
     // ADSR parameters
     ADSR::Parameters adsrParams;
@@ -103,9 +102,6 @@ private:
     // Map from note voices to notenumber
     // So: { -1 -1 74 -1 -1 ... } means that the third voice is currently playing MIDI note 74
     std::array<int, NUM_VOICES> noteNumberForVoice = {};
-
-    // Pitch detection
-    // dywapitchtracker pitchtracker;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

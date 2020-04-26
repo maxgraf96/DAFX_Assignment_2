@@ -25,8 +25,9 @@ void Delay::prepare(const juce::dsp::ProcessSpec& spec)
     updateDelayTime();
 
     // Use first order LP for now
-    filterCoefs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, float(18000));
-    tuningFilterCoefs = new juce::dsp::IIR::Coefficients<float>(1.0f, C, C, 1.0);
+    filterCoefs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, float(sampleRate/2));
+    //tuningFilterCoefs = new juce::dsp::IIR::Coefficients<float>(1.0f, C, C, 1.0);
+    //tuningFilterCoefs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderAllPass(sampleRate, int(sampleRate / 2));
 
     for (auto& f : filters)
     {
@@ -44,6 +45,11 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
     auto numSamples = buffer.getNumSamples();
     auto numChannels = buffer.getNumChannels();
 
+    auto currentFeedback = feedback;
+    if (isAdaptiveDecay) {
+        currentFeedback = stretchFactor;
+    }
+
     for (size_t ch = 0; ch < numChannels; ++ch)
     {
         auto input = inputBuffer[ch];
@@ -59,19 +65,16 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
             auto delayedSample = filter.processSample(dline.get(delayTime));
 
             // Fine-tune the string using an allpass filter as described in the KS-extension paper
-            float tuned = filter.processSample(delayedSample);
+            float tuned = tuningFilter.processSample(delayedSample);
 
-            // Input from main buffer
+            // Get input sample from main buffer
             auto inputSample = input[i];
-            auto dlineInputSample = inputSample + feedback * tuned;
-            // Hard-limit the amplitude output
-            if (dlineInputSample < -1.0f)
-                dlineInputSample = -1.0f;
-            if (dlineInputSample > 1.0f)
-                dlineInputSample = 1.0f;
+
+            // Combine input and delayed samples
+            auto dlineInputSample = inputSample + currentFeedback * tuned;
             dline.push(dlineInputSample);
-            auto outputSample = wetLevel * delayedSample;
-            output[i] = outputSample;
+
+            output[i] = delayedSample;
         }
     }
 }
@@ -123,14 +126,12 @@ void Delay::setDelayTime(size_t channel, int newValueSamples)
     jassert(newValueSamples >= 0);
     delayTimes[channel] = newValueSamples;
     delayTimesSample[channel] = newValueSamples;
-
-    //updateDelayTime();
 }
 
 void Delay::prepareFineTune(double fundamentalFrequency)
 {
     double phaseResponseLowpass = filterCoefs->getPhaseForFrequency(fundamentalFrequency, sampleRate);
-    float epsilon = 1.0 / sampleRate;
+    float epsilon = 0.01;
     double samplePeriod = 1.0 / sampleRate;
 
     double phaseDelayLowpass = -phaseResponseLowpass / (2.0 * MathConstants<double>::pi * fundamentalFrequency * samplePeriod);
@@ -153,23 +154,34 @@ void Delay::prepareFineTune(double fundamentalFrequency)
     double dC = sin((left - right) / 2.0)
         / sin((left + right) / 2.0);
 
-    C = static_cast<float>(dC);
+    C = dC;
 
-    // Allpass filter for tuning
-    
+    //auto test = -(1.0 / (left)) * atan(-sin(left) / (dC + cos(left)));
 
-    tuningFilterCoefs = new juce::dsp::IIR::Coefficients<float>(1.0f, C, C, 1.0);
+    // Set tuning-allpass filter coefficients based on incoming fundamental frequency
+    tuningFilterCoefs = new juce::dsp::IIR::Coefficients<float>(1.0f, C, 1.0f, C);
     for (auto& f : tuningFilters)
         f.coefficients = tuningFilterCoefs;
 
-    auto p1check = N + phaseDelayLowpass + phaseDelayAllpass;
+    // If adaptive decay is enabled set stretch factor accordingly
+    if (feedback == 1.0f)
+        stretchFactor = 1.0f - log(1000) * (1.0f / fundamentalFrequency);
+    else {
+        auto factor = log(1000) * (1.0f / fundamentalFrequency);
+        stretchFactor = feedback - log(1000) * (1.0f / fundamentalFrequency);
+    }
 
-    auto test = 2;
+    auto a = 2;
 }
 
 void Delay::setSampleRate(double sr)
 {
     this->sampleRate = sr;
+}
+
+void Delay::setAdaptiveDecay(bool isAdaptiveDecay)
+{
+    this->isAdaptiveDecay = isAdaptiveDecay;
 }
 
 void Delay::updateDelayLineSize() {
@@ -193,6 +205,7 @@ void Delay::updateDelayTime() noexcept {
 float Delay::fineTune(float input, float prevInput, float prevOutput)
 {
     // Sample output
-    float out = C * input + prevInput - C * prevOutput;
+    float out = C * input + prevInput - (C * prevOutput);
     return out;
 }
+

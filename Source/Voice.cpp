@@ -24,7 +24,7 @@ Voice::Voice(AudioBuffer<float>* sampleBuffer, juce::dsp::ProcessSpec delayProce
     buffer.reset(new AudioBuffer<float>(2, bufferLength));
 }
 
-void Voice::noteOn(int noteNumber, int samplePanelStartIdx, int windowLength)
+void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int windowLength)
 {
     // Reset capture buffer sample position
     bufferPosition = 0;
@@ -41,6 +41,10 @@ void Voice::noteOn(int noteNumber, int samplePanelStartIdx, int windowLength)
     // Load window into playback buffer
     for (int channel = 0; channel < sampleBuffer.getNumChannels(); channel++)
         buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, windowLength);
+
+    // Attenuate according to velocity
+    float velocityMapped = map(float(velocity), 0.0, 127.0, 0.0, 1.0);
+    buffer->applyGain(velocityMapped);
 
     // Set note number
     this->noteNumber = noteNumber;
@@ -116,8 +120,8 @@ void Voice::play(AudioBuffer<float>& mainBuffer)
         }
         else {
             // ADSR mode -> reset buffer position
-            // Note: The reset here goes to a little over 0 to avoid the initial click
-            bufferPosition = int(buffer->getNumSamples() / 3);
+            // Note: The reset here goes to the half point of the buffer to avoid the initial pluck sound when padding
+            bufferPosition = int(buffer->getNumSamples() / 2);
         }
     }
 }
@@ -150,4 +154,8 @@ void Voice::setADSRParams(ADSR::Parameters& params)
 void Voice::setADSRMode(bool mode)
 {
     this->adsrMode = mode;
+}
+
+void Voice::setAdaptiveDecay(bool isAdaptiveDecay) {
+    delay.setAdaptiveDecay(isAdaptiveDecay);
 }
