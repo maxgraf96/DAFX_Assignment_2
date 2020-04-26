@@ -22,6 +22,7 @@ Voice::Voice(AudioBuffer<float>* sampleBuffer, juce::dsp::ProcessSpec delayProce
 
     // Setup buffer
     buffer.reset(new AudioBuffer<float>(2, bufferLength));
+    processBuffer.reset(new AudioBuffer<float>(2, bufferLength));
 }
 
 void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int windowLength)
@@ -34,6 +35,9 @@ void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int 
 
     // Convert note number to frequency
     auto frequency = MidiMessage::getMidiNoteInHertz(noteNumber);
+
+    // Reset delay elements (filters and delay line)
+    delay.reset();
 
     // Prepare delay for fine-tuning (also sets delay length)
     delay.prepareFineTune(frequency);
@@ -56,7 +60,7 @@ void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int 
 
 void Voice::noteOff()
 {
-    if(adsrMode)
+    if (adsrMode)
         adsr.noteOff();
 }
 
@@ -64,26 +68,17 @@ void Voice::play(AudioBuffer<float>& mainBuffer)
 {
     // Always check if adsr is done, if so, reset buffer position
     if (adsrMode && !adsr.isActive()) {
-        // Find this voice's number in notes and reset
-        for (int& nn : noteNumberForVoice) {
-            if (nn == noteNumber) {
-                nn = NOT_PLAYING;
-                break;
-            }
-        }
-        // Reset note number
-        noteNumber = NOT_PLAYING;
-        playing = false;
-
+        resetVoice();
+        return;
     }
     // Get number of samples to copy
     auto numSamplesToCopy = mainBuffer.getNumSamples();
-    auto finished = false;
+    auto isBufferEndReached = false;
     if (bufferPosition + numSamplesToCopy >= buffer->getNumSamples()) {
         // If we are at the end of the capture buffer
         numSamplesToCopy = buffer->getNumSamples() - bufferPosition;
-        // Stop playback for next block
-        finished = true;
+        // Stop playback for next block if in non-pad mode
+        isBufferEndReached = true;
     }
 
     // Create subbuffer
@@ -102,7 +97,6 @@ void Voice::play(AudioBuffer<float>& mainBuffer)
 
     // Copy audio data into main buffer
     for (int channel = 0; channel < buffer->getNumChannels(); channel++) {
-        // If finished apply gain ramp
         mainBuffer.addFrom(channel, 0, *processBuffer, channel, 0, numSamplesToCopy);
     }
 
@@ -112,11 +106,10 @@ void Voice::play(AudioBuffer<float>& mainBuffer)
     // What to do when end of buffer reached:
     // If mode is normal, stop playing
     // If mode is ADSR, just reset the buffer position to 0 (loop the buffer as volume is controlled by envelope)
-    if (finished) {
+    if (isBufferEndReached) {
         if (!adsrMode) {
             // Normal mode
-            playing = false;
-            bufferPosition = NOT_PLAYING;
+            resetVoice();
         }
         else {
             // ADSR mode -> reset buffer position
@@ -124,6 +117,25 @@ void Voice::play(AudioBuffer<float>& mainBuffer)
             bufferPosition = int(buffer->getNumSamples() / 2);
         }
     }
+}
+
+void Voice::resetVoice()
+{
+    endNoteInMap();
+    bufferPosition = NOT_PLAYING;
+    buffer->clear();
+    processBuffer->clear();
+    playing = false;
+}
+
+void Voice::endNoteInMap() {
+    for (int& nn : noteNumberForVoice) {
+        if (nn == noteNumber) {
+            nn = NOT_PLAYING;
+            return;
+        }
+    }
+    noteNumber = NOT_PLAYING;
 }
 
 void Voice::setDelayFeedback(float delayFeedback)

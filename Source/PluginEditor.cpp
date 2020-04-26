@@ -71,17 +71,17 @@ Dafx_assignment_2AudioProcessorEditor::Dafx_assignment_2AudioProcessorEditor (Da
     releaseSlider.setTextValueSuffix(" ms release");
 
     // Fix velocity to 127 toggle
-    fixVelocityToggle.setBounds(decaySlider.getBounds().getTopRight().getX() + 24, 224, toggleSize, toggleSize);
-    fixVelocityToggle.setButtonText("Dynamic velocity");
-    fixVelocityToggle.changeWidthToFitText();
-    valueTreeState.addParameterListener("fixVelocity", this);
+    dynamicVelocityToggle.setBounds(decaySlider.getBounds().getTopRight().getX() + 24, 224, toggleSize, toggleSize);
+    dynamicVelocityToggle.setButtonText("Dynamic velocity");
+    dynamicVelocityToggle.changeWidthToFitText();
+    valueTreeState.addParameterListener("dynamicVelocity", this);
 
     // Adaptive decay toggle
-    stretchFactorToggle.setBounds(fixVelocityToggle.getBounds().getTopLeft().getX(), 
-        fixVelocityToggle.getBounds().getBottomLeft().getY() + 12, toggleSize, toggleSize);
-    stretchFactorToggle.setButtonText("Adaptive decay time");
-    stretchFactorToggle.changeWidthToFitText();
-    valueTreeState.addParameterListener("stretchFactor", this);
+    adaptiveDecayToggle.setBounds(dynamicVelocityToggle.getBounds().getTopLeft().getX(), 
+        dynamicVelocityToggle.getBounds().getBottomLeft().getY() + 12, toggleSize, toggleSize);
+    adaptiveDecayToggle.setButtonText("Adaptive decay time");
+    adaptiveDecayToggle.changeWidthToFitText();
+    valueTreeState.addParameterListener("adaptiveDecay", this);
 
     // Hook up sliders to state management
     positionAttachment.reset(new SliderAttachment(valueTreeState, "position", positionSlider));
@@ -92,8 +92,8 @@ Dafx_assignment_2AudioProcessorEditor::Dafx_assignment_2AudioProcessorEditor (Da
     decayAttachment.reset(new SliderAttachment(valueTreeState, "decay", decaySlider));
     sustainAttachment.reset(new SliderAttachment(valueTreeState, "sustain", sustainSlider));
     releaseAttachment.reset(new SliderAttachment(valueTreeState, "release", releaseSlider));
-    fixVelocityAttachment.reset(new ButtonAttachment(valueTreeState, "fixVelocity", fixVelocityToggle));
-    stretchFactorAttachment.reset(new ButtonAttachment(valueTreeState, "stretchFactor", stretchFactorToggle));
+    dynamicVelocityAttachment.reset(new ButtonAttachment(valueTreeState, "dynamicVelocity", dynamicVelocityToggle));
+    adaptiveDecayAttachment.reset(new ButtonAttachment(valueTreeState, "adaptiveDecay", adaptiveDecayToggle));
 
     // Make nonlinear
     attackSlider.setSkewFactorFromMidPoint(500);
@@ -112,13 +112,13 @@ Dafx_assignment_2AudioProcessorEditor::Dafx_assignment_2AudioProcessorEditor (Da
     addAndMakeVisible(decaySlider);
     addAndMakeVisible(sustainSlider);
     addAndMakeVisible(releaseSlider);
-    addAndMakeVisible(fixVelocityToggle);
-    addAndMakeVisible(stretchFactorToggle);
+    addAndMakeVisible(dynamicVelocityToggle);
+    addAndMakeVisible(adaptiveDecayToggle);
 
     // Enable/disable sliders based on mode
     bool isADSRMode = modeToggle.getToggleStateValue().getValue();
     delayFeedbackSlider.setEnabled(!isADSRMode);
-    stretchFactorToggle.setEnabled(!isADSRMode);
+    adaptiveDecayToggle.setEnabled(!isADSRMode);
 
     attackSlider.setEnabled(isADSRMode);
     decaySlider.setEnabled(isADSRMode);
@@ -132,6 +132,9 @@ Dafx_assignment_2AudioProcessorEditor::Dafx_assignment_2AudioProcessorEditor (Da
 
 Dafx_assignment_2AudioProcessorEditor::~Dafx_assignment_2AudioProcessorEditor()
 {
+    valueTreeState.removeParameterListener("mode", this);
+    valueTreeState.removeParameterListener("dynamicVelocity", this);
+    valueTreeState.removeParameterListener("adaptiveDecay", this);
     samplePanel.release();
 }
 
@@ -153,7 +156,7 @@ void Dafx_assignment_2AudioProcessorEditor::resized()
 void Dafx_assignment_2AudioProcessorEditor::parameterChanged(const String& parameterID, float newValue)
 {
     if (parameterID == "mode") {
-        if (newValue == 0.0) {
+        if (newValue == 0.0f) {
             // String mode
             // Activate feedback slider
             delayFeedbackSlider.setEnabled(true);
@@ -161,7 +164,7 @@ void Dafx_assignment_2AudioProcessorEditor::parameterChanged(const String& param
             decaySlider.setEnabled(false);
             sustainSlider.setEnabled(false);
             releaseSlider.setEnabled(false);
-            stretchFactorToggle.setEnabled(true);
+            adaptiveDecayToggle.setEnabled(true);
             repaint();
         }
         else {
@@ -171,7 +174,7 @@ void Dafx_assignment_2AudioProcessorEditor::parameterChanged(const String& param
             decaySlider.setEnabled(true);
             sustainSlider.setEnabled(true);
             releaseSlider.setEnabled(true);
-            stretchFactorToggle.setEnabled(false);
+            adaptiveDecayToggle.setEnabled(false);
             repaint();
         }
     }

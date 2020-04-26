@@ -91,8 +91,8 @@ private:
     float* sustainParam = nullptr;
     float* releaseParam = nullptr;
     // Whether to use the same velocity for every stroke
-    float* fixVelocityParam = nullptr;
-    float* stretchFactorParam = nullptr;
+    float* dynamicVelocityParam = nullptr;
+    float* adaptiveDecayParam = nullptr;
 
     // ADSR parameters
     ADSR::Parameters adsrParams;
@@ -102,6 +102,14 @@ private:
     // Map from note voices to notenumber
     // So: { -1 -1 74 -1 -1 ... } means that the third voice is currently playing MIDI note 74
     std::array<int, NUM_VOICES> noteNumberForVoice = {};
+
+    // Reset flag for voices
+    // Some voice parameters can't be changed during playback, so this guard will tell the 
+    // main loop not to use the voices while changes are being made
+    bool shouldVoicesChange = false;
+    // Callback for when voices should change
+    // This includes switching from normal mode to ADSR, and activating/deactivating adaptive decay times
+    void changeVoices();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

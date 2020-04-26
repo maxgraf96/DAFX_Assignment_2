@@ -78,12 +78,12 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             0
         ),
         std::make_unique<AudioParameterBool>(
-            "fixVelocity",
-            "Set velocity to fixed 127",
+            "dynamicVelocity",
+            "Dynamic velocity",
             false),
         std::make_unique<AudioParameterBool>(
-            "stretchFactor",
-            "Adaptive decay of harmonics",
+            "adaptiveDecay",
+            "Adaptive decay",
             false)
         })
 {
@@ -100,8 +100,8 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     parameters.addParameterListener("decay", this);
     parameters.addParameterListener("sustain", this);
     parameters.addParameterListener("release", this);
-    parameters.addParameterListener("fixVelocity", this);
-    parameters.addParameterListener("stretchFactor", this);
+    parameters.addParameterListener("dynamicVelocity", this);
+    parameters.addParameterListener("adaptiveDecay", this);
 
     positionParam = parameters.getRawParameterValue("position");
     windowLengthParam = parameters.getRawParameterValue("windowLength");
@@ -111,8 +111,8 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     decayParam = parameters.getRawParameterValue("decay");
     sustainParam = parameters.getRawParameterValue("sustain");
     releaseParam = parameters.getRawParameterValue("release");
-    fixVelocityParam = parameters.getRawParameterValue("fixVelocity");
-    stretchFactorParam = parameters.getRawParameterValue("stretchFactor");
+    dynamicVelocityParam = parameters.getRawParameterValue("dynamicVelocity");
+    adaptiveDecayParam = parameters.getRawParameterValue("adaptiveDecay");
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -196,21 +196,21 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     // Clear voices (for some reason prepareToPlay() can be called twice per startup)
     voices.clear();
 
-    // Initialise 16 voices
+    // Initialise NUM_VOICES (currently 16) voices
     bool isADSRMode = *modeParam > 0.0 ? true : false;
-    bool isAdaptiveDecay = !isADSRMode && *stretchFactorParam > 0.0f;
-    for (int voice = 0; voice < NUM_VOICES; voice++) {
+    bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
+    for (int i = 0; i < NUM_VOICES; i++) {
         voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *delayProcessContext, int(2 * sampleRate), noteNumberForVoice)));
-        voices[voice]->setDelayFeedback(*delayFeedbackParam);
-        voices[voice]->setDelayWet(1.0);
-        voices[voice]->setADSRParams(adsrParams);
-        voices[voice]->setADSRMode(isADSRMode);
-        voices[voice]->setAdaptiveDecay(isAdaptiveDecay);
+        voices[i]->setDelayFeedback(*delayFeedbackParam);
+        voices[i]->setDelayWet(1.0);
+        voices[i]->setADSRParams(adsrParams);
+        voices[i]->setADSRMode(isADSRMode);
+        voices[i]->setAdaptiveDecay(isAdaptiveDecay);
 
         // Initialise note number to voice map
         // -1 means "not playing", if a voice is playing this array will contain the MIDI
         // note number the voice is currently playing
-        noteNumberForVoice[voice] = -1;
+        noteNumberForVoice[i] = -1;
     }
 }
 
@@ -246,6 +246,13 @@ bool Dafx_assignment_2AudioProcessor::isBusesLayoutSupported (const BusesLayout&
 
 void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 {
+    // Some voice parameters (e.g. adsr mode) can't be changed during playback at the moment
+    // This flag should be set if the voices need to be changed
+    // Currently these changes include adsr mode switching
+    if (shouldVoicesChange) {
+        changeVoices();
+        return;
+    }
     ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
@@ -258,45 +265,44 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
 
     for (MidiBuffer::Iterator i(midiMessages); i.getNextEvent(m, time);)
     {
+        auto noteNumber = m.getNoteNumber();
         if (m.isNoteOn())
         {
             m = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber(), m.getVelocity());
             uint8 velocity = m.getVelocity();
-            if (*fixVelocityParam == 0.0) {
+            if (*dynamicVelocityParam == 0.0f) {
                 velocity = 127;
             }
 
-            auto noteNumber = m.getNoteNumber();
-
             // Check if note already exists. If so, retrigger
             bool isRetrigger = false;
-            int voiceToBeRetriggeredIdx = -1;
+            int selectedVoiceIdx = -1;
             for (int i = 0; i < NUM_VOICES; i++) {
                 if (noteNumberForVoice[i] == noteNumber) {
                     // Current incoming note is alreay playing => retrigger
                     isRetrigger = true;
-                    voiceToBeRetriggeredIdx = i;
+                    selectedVoiceIdx = i;
                     break;
                 }
             }
 
             if (isRetrigger) {
-                voices[voiceToBeRetriggeredIdx]->noteOn(noteNumber, velocity, samplePanelStartIdx, windowLength);
+                voices[selectedVoiceIdx]->noteOn(noteNumber, velocity, samplePanelStartIdx, windowLength);
             }
             else {
                 // If it's a completely new note find the next free voice and trigger
                 for (int i = 0; i < NUM_VOICES; i++) {
-                    if (!voices[i]->isPlaying()) {
+                    if (noteNumberForVoice[i] == Voice::NOT_PLAYING) {
                         voices[i]->noteOn(noteNumber, velocity, samplePanelStartIdx, windowLength);
-                        voiceToBeRetriggeredIdx = i;
+                        selectedVoiceIdx = i;
                         break;
                     }
                 }
             }
 
             // Set in map
-            if (voiceToBeRetriggeredIdx > -1) {
-                noteNumberForVoice[voiceToBeRetriggeredIdx] = noteNumber;
+            if (selectedVoiceIdx > -1) {
+                noteNumberForVoice[selectedVoiceIdx] = noteNumber;
             }
             else {
                 // More incoming notes than available slot in voices array
@@ -307,7 +313,7 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         {
             // Get voice for note number
             for (int i = 0; i < NUM_VOICES; i++) {
-                if (voices[i]->isPlaying() && voices[i]->getNoteNumber() == m.getNoteNumber()) {
+                if (noteNumberForVoice[i] == noteNumber) {
                     voices[i]->noteOff();
                     break;
                 }
@@ -340,10 +346,9 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         // This will hit once a sample was captured and a key is pressed
         buffer.clear();
 
-        for (auto&& voice : voices) {
-            if (voice->isPlaying()) {
-                voice->play(buffer);
-            }
+        for (int i = 0; i < NUM_VOICES; i++) {
+            if (noteNumberForVoice[i] > Voice::NOT_PLAYING)
+                voices[i]->play(buffer);
         }
     }
 }
@@ -365,31 +370,14 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
         setDelayFeedback(newValue);
     }
     if (parameterID == "mode") {
-        bool isADSRMode = newValue > 0.0;
-        // Set voices accordingly
-        for (auto&& voice : voices) {
-            voice->setADSRMode(isADSRMode);
-        }
-        if (isADSRMode) {
-            // Pad mode
-            // Set delay feedback to 1.0 as sound over time will be controlled by ADSR envelope
-            parameters.getParameterAsValue("delayFeedback").setValue(1.0);
-
-            // Disable adaptive decay of harmonics
-            for (auto&& voice : voices) {
-                voice->setAdaptiveDecay(false);
-            }
-        }
-        else {
-            // String mode
-            parameters.getParameterAsValue("delayFeedback").setValue(0.99);
-
-            // Get previous value of decay stratching flag
-            bool isDecayStretching = *stretchFactorParam > 0.0f;
-            for (auto&& voice : voices) {
-                voice->setAdaptiveDecay(isDecayStretching);
-            }
-        }
+        // This check is necessary to handle mode change via automation
+        // Otherwise "non-normalisable" values are set (as it's a bool param) and JUCE complains
+        if (newValue > 0.0f)
+            *modeParam = 1.0f;
+        else
+            *modeParam = 0.0f;
+        // Stop playback
+        shouldVoicesChange = true;
     }
     if (parameterID == "attack") {
         adsrParams.attack = newValue * 0.001;
@@ -415,18 +403,36 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
             voice->setADSRParams(adsrParams);
         }
     }
-    if(parameterID == "stretchFactor") {
-        if (newValue == 0.0f) {
-            for (auto&& voice : voices) {
-                voice->setAdaptiveDecay(false);
-            }
-        }
-        else {
-            for (auto&& voice : voices) {
-                voice->setAdaptiveDecay(true);
-            }
-        }
+    if(parameterID == "adaptiveDecay") {
+        if (newValue > 0.0f)
+            *adaptiveDecayParam = 1.0f;
+        else
+            *adaptiveDecayParam = 0.0f;
+        shouldVoicesChange = true;
     }
+}
+
+void Dafx_assignment_2AudioProcessor::changeVoices()
+{
+    bool isADSRMode = *modeParam > 0.0;
+    bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
+    // Set voices accordingly
+    for (auto&& voice : voices) {
+        voice->setADSRMode(isADSRMode);
+        voice->setAdaptiveDecay(isAdaptiveDecay);
+    }
+    if (isADSRMode) {
+        // Pad mode
+        // Set delay feedback to 1.0 as sound over time will be controlled by ADSR envelope
+        parameters.getParameterAsValue("delayFeedback").setValue(1.0);
+    }
+    else {
+        // String mode
+        parameters.getParameterAsValue("delayFeedback").setValue(0.99);
+    }
+
+    // Re-enable sound
+    shouldVoicesChange = false;
 }
 
 SamplePanel* Dafx_assignment_2AudioProcessor::getSamplePanel()

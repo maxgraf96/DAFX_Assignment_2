@@ -25,6 +25,7 @@ public:
     void noteOff();
     // To copy samples from voice buffer to main audio buffer
     void play(AudioBuffer<float>& mainBuffer);
+    void endNoteInMap();
     void setDelayFeedback(float delayFeedback);
     void setDelayWet(float delayWet);
     bool isPlaying();
@@ -34,6 +35,7 @@ public:
     void setADSRMode(bool mode);
 
 	void setAdaptiveDecay(bool on);
+    void resetVoice();
 
 private:
     // Normal (false) vs. ADSR (true)

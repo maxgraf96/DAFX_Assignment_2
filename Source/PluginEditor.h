@@ -38,8 +38,8 @@ private:
     std::unique_ptr<SliderAttachment> windowLengthAttachment;
     std::unique_ptr<SliderAttachment> delayFeedbackAttachment;
     std::unique_ptr<ButtonAttachment> modeAttachment;
-    std::unique_ptr<ButtonAttachment> fixVelocityAttachment;
-    std::unique_ptr<ButtonAttachment> stretchFactorAttachment;
+    std::unique_ptr<ButtonAttachment> dynamicVelocityAttachment;
+    std::unique_ptr<ButtonAttachment> adaptiveDecayAttachment;
 
     std::unique_ptr<SliderAttachment> attackAttachment;
     std::unique_ptr<SliderAttachment> decayAttachment;
@@ -54,8 +54,8 @@ private:
 
     // Togglebutton
     ToggleButton modeToggle;
-    ToggleButton fixVelocityToggle;
-    ToggleButton stretchFactorToggle;
+    ToggleButton dynamicVelocityToggle;
+    ToggleButton adaptiveDecayToggle;
 
     // ADSR elements
     Slider attackSlider;
