@@ -60,8 +60,6 @@ public:
     void getStateInformation (MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    SamplePanel* getSamplePanel();
-
     // Delay methods
     void setDelayFeedback(float delayFeedback);
 
@@ -112,6 +110,11 @@ private:
     // Callback for when voices should change
     // This includes switching from normal mode to ADSR, and activating/deactivating adaptive decay times
     void changeVoices();
+
+    // Mapped pitch wheel control [0...1]
+    float mappedPitchWheelValue = 0.0f;
+    // How far to shift up/down
+    int pitchBendRange = 12;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

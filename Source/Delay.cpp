@@ -133,8 +133,21 @@ void Delay::setDelayTime(size_t channel, int newValueSamples)
     delayTimesSample[channel] = newValueSamples;
 }
 
-void Delay::prepareFineTune(double fundamentalFrequency)
+void Delay::prepareFineTune(double fundamentalFrequency, float pitchWheelValue)
 {
+    // Adjust f0 based on current pitch-wheel value
+    auto semitoneRangeInCent = 50.0;
+    auto currentRange = pitchWheelValue * semitoneRangeInCent;
+    
+    // Get the current detune in cents for the incoming pitch bend value
+    // "root" here comes from the Constants.h file and is the value any frequency must be multiplied
+    // with to increase it by one cent (2^(1/1200)) in an equally tempered tuning
+    double centMultiplicator = pow(root, currentRange);
+
+    fundamentalFrequency *= centMultiplicator;
+
+    auto pitchWheelMapped = pitchWheelValue * 10.0f;
+
     double phaseResponseLowpass = filterCoefs->getPhaseForFrequency(fundamentalFrequency, sampleRate);
     float epsilon = 0.01;
     double samplePeriod = 1.0 / sampleRate;

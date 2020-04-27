@@ -319,6 +319,15 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
                 }
             }
         }
+
+        // Glissandi/Slurs controlled by the MIDI pitch bend
+        if (m.isPitchWheel()) {
+            float pitchWheelValue = static_cast<float>(m.getPitchWheelValue());
+            mappedPitchWheelValue = map(pitchWheelValue, 0.0f, 16384.0f, -1.0f, 1.0f);
+
+
+        }
+
         processedMidi.addEvent(m, time);
     }
     midiMessages.swapWith(processedMidi);
@@ -352,7 +361,7 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
 
         for (int i = 0; i < NUM_VOICES; i++) {
             if (noteNumberForVoice[i] > Voice::NOT_PLAYING)
-                voices[i]->play(buffer, samplePanelStartIdx, windowLength, windowChanged);
+                voices[i]->play(buffer, samplePanelStartIdx, windowLength, windowChanged, mappedPitchWheelValue);
         }
 
         // Update previous sample panel start index and window length
@@ -443,11 +452,6 @@ void Dafx_assignment_2AudioProcessor::changeVoices()
     shouldVoicesChange = false;
 }
 
-SamplePanel* Dafx_assignment_2AudioProcessor::getSamplePanel()
-{
-    return samplePanel.get();
-}
-
 //==============================================================================
 bool Dafx_assignment_2AudioProcessor::hasEditor() const
 {
@@ -456,7 +460,7 @@ bool Dafx_assignment_2AudioProcessor::hasEditor() const
 
 AudioProcessorEditor* Dafx_assignment_2AudioProcessor::createEditor()
 {
-    return new Dafx_assignment_2AudioProcessorEditor (*this, parameters);
+    return new Dafx_assignment_2AudioProcessorEditor (*this, parameters, *samplePanel);
 }
 
 //==============================================================================

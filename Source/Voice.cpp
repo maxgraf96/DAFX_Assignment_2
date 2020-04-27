@@ -40,7 +40,7 @@ void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int 
     delay.reset();
 
     // Prepare delay for fine-tuning (also sets delay length)
-    delay.prepareFineTune(currentFrequency);
+    delay.prepareFineTune(currentFrequency, 0.0f);
 
     // Load window into playback buffer
     for (int channel = 0; channel < sampleBuffer.getNumChannels(); channel++)
@@ -64,7 +64,7 @@ void Voice::noteOff()
         adsr.noteOff();
 }
 
-void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int windowLength, bool windowChanged)
+void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int windowLength, bool windowChanged, float pitchWheelValue)
 {
     // Always check if adsr is done, if so, reset buffer position
     if (adsrMode && !adsr.isActive()) {
@@ -72,6 +72,7 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
         return;
     }
 
+    // Update the playback buffer if the window changed
     if (windowChanged) {
         // Reset playback buffer
         buffer->clear();
@@ -80,9 +81,11 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
             buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, windowLength);
 
         delay.windowChanged();
-        delay.prepareFineTune(currentFrequency);
+        delay.prepareFineTune(currentFrequency, pitchWheelValue);
         bufferPosition = int(windowLength / 2);
     }
+
+    delay.prepareFineTune(currentFrequency, pitchWheelValue);
 
     // Get number of samples to copy - this corresponds to the block size specified by the plugin host
     auto numSamplesToCopy = mainBuffer.getNumSamples();

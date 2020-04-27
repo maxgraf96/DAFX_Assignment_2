@@ -12,3 +12,4 @@
 const float WINDOW_LENGTH_MIN = 2400.0; // 5ms if sample rate is 48kHz
 const float WINDOW_LENGTH_MAX = 20000.0;
 const int NUM_VOICES = 16;
+const double root = std::exp(std::log(2) / 1200);

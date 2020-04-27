@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="xdT6HF" name="DAFX_Assignment_2" projectType="audioplug"
-              jucerVersion="5.4.5" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn">
+              jucerVersion="5.4.5" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn"
+              companyName="Max Graf" companyWebsite="https://0405.at/" companyEmail="max.graf@live.at">
   <MAINGROUP id="qRMJEF" name="DAFX_Assignment_2">
     <GROUP id="{9F9A7A50-A8A3-5D1E-3E6D-AFA81AB820E1}" name="Source">
+      <FILE id="gUuJKF" name="JUCEEditor.cpp" compile="1" resource="0" file="Source/JUCEEditor.cpp"/>
+      <FILE id="f4Igv9" name="JUCEEditor.h" compile="0" resource="0" file="Source/JUCEEditor.h"/>
       <FILE id="utkVNx" name="Voice.cpp" compile="1" resource="0" file="Source/Voice.cpp"/>
       <FILE id="cRRbeL" name="Voice.h" compile="0" resource="0" file="Source/Voice.h"/>
       <FILE id="m8Y7od" name="Delay.cpp" compile="1" resource="0" file="Source/Delay.cpp"/>
@@ -67,8 +70,8 @@
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
   </MODULES>
   <LIVE_SETTINGS>
-    <WINDOWS buildEnabled="0" systemHeaderPath="C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include"
-             windowsTargetPlatformVersion="10.0.10240.0"/>
+    <WINDOWS buildEnabled="0" systemHeaderPath="C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include&#10;C:\Program Files (x86)\Windows Kits\10\Include\10.0.18362.0"
+             windowsTargetPlatformVersion="10.0.18362.0" extraCompilerFlags="-std=c++14"/>
   </LIVE_SETTINGS>
   <JUCEOPTIONS JUCE_VST3_CAN_REPLACE_VST2="0" JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
 </JUCERPROJECT>

@@ -24,7 +24,7 @@ public:
     void noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int windowLength);
     void noteOff();
     // To copy samples from voice buffer to main audio buffer
-    void play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int windowLength, bool windowChanged);
+    void play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int windowLength, bool windowChanged, float pitchWheelValue);
     void endNoteInMap();
     void setDelayFeedback(float delayFeedback);
     void setDelayWet(float delayWet);
