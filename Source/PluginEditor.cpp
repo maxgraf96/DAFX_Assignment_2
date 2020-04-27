@@ -28,13 +28,13 @@ Dafx_assignment_2AudioProcessorEditor::Dafx_assignment_2AudioProcessorEditor (Da
     windowLengthSlider.setSliderStyle(Slider::SliderStyle::RotaryVerticalDrag);
     windowLengthSlider.setTextBoxStyle(Slider::TextBoxBelow, true, 100, 50);
     windowLengthSlider.setPopupDisplayEnabled(true, false, this);
-    windowLengthSlider.setTextValueSuffix(" window length");
+    windowLengthSlider.setTextValueSuffix("\nwindow length");
 
     delayFeedbackSlider.setBounds(12, positionSlider.getBounds().getBottomLeft().getY() + 24 , rotarySliderSize, rotarySliderSize);
     delayFeedbackSlider.setSliderStyle(Slider::SliderStyle::RotaryVerticalDrag);
     delayFeedbackSlider.setTextBoxStyle(Slider::TextBoxBelow, true, 100, 50);
     delayFeedbackSlider.setPopupDisplayEnabled(true, false, this);
-    delayFeedbackSlider.setTextValueSuffix(" delay feedback");
+    delayFeedbackSlider.setTextValueSuffix("\ndelay feedback");
 
     // Mode (String vs. ADSR)
     auto toggleSize = 24;

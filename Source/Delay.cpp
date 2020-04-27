@@ -91,6 +91,11 @@ void Delay::reset() noexcept
         dline.clear();
 }
 
+void Delay::windowChanged() {
+    for (auto& dline : delayLines)
+        dline.clear();
+}
+
 size_t Delay::getNumChannels() const noexcept
 {
     return delayLines.size();

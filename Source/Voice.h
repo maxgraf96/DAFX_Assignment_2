@@ -24,7 +24,7 @@ public:
     void noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int windowLength);
     void noteOff();
     // To copy samples from voice buffer to main audio buffer
-    void play(AudioBuffer<float>& mainBuffer);
+    void play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int windowLength, bool windowChanged);
     void endNoteInMap();
     void setDelayFeedback(float delayFeedback);
     void setDelayWet(float delayWet);
@@ -49,7 +49,7 @@ private:
     // Extra buffer for processing
     std::unique_ptr<AudioBuffer<float>> processBuffer;
 
-    // Pointer to the buffer storing the sample
+    // Reference to the buffer storing the sample
     // Same for all voices
     AudioBuffer<float>& sampleBuffer;
     
@@ -63,4 +63,7 @@ private:
     // This is necessary to have here because if the voice is in ADSR mode
     // it needs to wait until the release phase is over before releasing the slot
     std::array<int, NUM_VOICES>& noteNumberForVoice;
+
+    float currentVelocity = 0.0f;
+    double currentFrequency = 0.0f;
 };

@@ -22,7 +22,7 @@ Voice::Voice(AudioBuffer<float>* sampleBuffer, juce::dsp::ProcessSpec delayProce
 
     // Setup buffer
     buffer.reset(new AudioBuffer<float>(2, bufferLength));
-    processBuffer.reset(new AudioBuffer<float>(2, bufferLength));
+    processBuffer.reset(new AudioBuffer<float>(2, delayProcessContext.maximumBlockSize));
 }
 
 void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int windowLength)
@@ -34,21 +34,21 @@ void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int 
     buffer->clear();
 
     // Convert note number to frequency
-    auto frequency = MidiMessage::getMidiNoteInHertz(noteNumber);
+    currentFrequency = MidiMessage::getMidiNoteInHertz(noteNumber);
 
     // Reset delay elements (filters and delay line)
     delay.reset();
 
     // Prepare delay for fine-tuning (also sets delay length)
-    delay.prepareFineTune(frequency);
+    delay.prepareFineTune(currentFrequency);
 
     // Load window into playback buffer
     for (int channel = 0; channel < sampleBuffer.getNumChannels(); channel++)
         buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, windowLength);
 
     // Attenuate according to velocity
-    float velocityMapped = map(float(velocity), 0.0, 127.0, 0.0, 1.0);
-    buffer->applyGain(velocityMapped);
+    currentVelocity = map(float(velocity), 0.0, 127.0, 0.0, 1.0);
+    buffer->applyGain(currentVelocity);
 
     // Set note number
     this->noteNumber = noteNumber;
@@ -64,14 +64,27 @@ void Voice::noteOff()
         adsr.noteOff();
 }
 
-void Voice::play(AudioBuffer<float>& mainBuffer)
+void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int windowLength, bool windowChanged)
 {
     // Always check if adsr is done, if so, reset buffer position
     if (adsrMode && !adsr.isActive()) {
         resetVoice();
         return;
     }
-    // Get number of samples to copy
+
+    if (windowChanged) {
+        // Reset playback buffer
+        buffer->clear();
+        // Load window into playback buffer
+        for (int channel = 0; channel < sampleBuffer.getNumChannels(); channel++)
+            buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, windowLength);
+
+        delay.windowChanged();
+        delay.prepareFineTune(currentFrequency);
+        bufferPosition = int(windowLength / 2);
+    }
+
+    // Get number of samples to copy - this corresponds to the block size specified by the plugin host
     auto numSamplesToCopy = mainBuffer.getNumSamples();
     auto isBufferEndReached = false;
     if (bufferPosition + numSamplesToCopy >= buffer->getNumSamples()) {
@@ -82,13 +95,15 @@ void Voice::play(AudioBuffer<float>& mainBuffer)
     }
 
     // Create subbuffer
-    processBuffer.reset(new AudioBuffer<float>(buffer->getNumChannels(), numSamplesToCopy));
     for (int channel = 0; channel < buffer->getNumChannels(); channel++) {
         processBuffer->copyFrom(channel, 0, *buffer, channel, bufferPosition, numSamplesToCopy);
     }
 
     // Feed signal into delay line
     delay.process(*processBuffer);
+
+    // Apply gain for velocity
+    processBuffer->applyGain(currentVelocity);
 
     // Apply volume envelope if in synth mode
     if (adsrMode) {

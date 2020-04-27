@@ -74,11 +74,13 @@ private:
     AudioBuffer<float> *sampleBuffer = nullptr;
 
     // Window size (length)
-    int windowLength = WINDOW_LENGTH_MIN; 
+    int windowLength = WINDOW_LENGTH_MIN;
+    int prevWindowLength = -1;
 
     // SamplePanel component
     std::unique_ptr<SamplePanel> samplePanel;
     int samplePanelStartIdx = 0;
+    int prevSamplePanelStartIdx = 0;
 
     // Control parameters
     // Controls the sample position in seconds

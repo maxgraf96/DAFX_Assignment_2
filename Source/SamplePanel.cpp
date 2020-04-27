@@ -198,10 +198,10 @@ void SamplePanel::mouseEventUpdateSamplePosition(const MouseEvent& mouseEvent) {
     }
 
     // Get x position in terms of component
-    auto xPos = mouseEvent.getPosition().getX();
+    auto xPos = mouseEvent.position.getX();
     auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
     // Map to sample 
-    double mapped = map(float(xPos), 0.0f, float(getWidth()), 0.0, fileLengthInSeconds);
+    double mapped = map(xPos, 0.0f, static_cast<float>(getWidth()), 0.0f, fileLengthInSeconds);
     // Constrain to keep from going out of component bounds
     if (mapped < 0.0f)
         mapped = 0.0f;

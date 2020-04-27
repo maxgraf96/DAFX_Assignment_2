@@ -343,13 +343,21 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         int end = position + halfWindow;
         end = end > totalSampleLength ? totalSampleLength : end;
 
+        // Check if playback window has changed (either by being moved or changed in size)
+        // If so, update the voices accordingly
+        bool windowChanged = samplePanelStartIdx != prevSamplePanelStartIdx || windowLength != prevWindowLength;
+
         // This will hit once a sample was captured and a key is pressed
         buffer.clear();
 
         for (int i = 0; i < NUM_VOICES; i++) {
             if (noteNumberForVoice[i] > Voice::NOT_PLAYING)
-                voices[i]->play(buffer);
+                voices[i]->play(buffer, samplePanelStartIdx, windowLength, windowChanged);
         }
+
+        // Update previous sample panel start index and window length
+        prevSamplePanelStartIdx = samplePanelStartIdx;
+        prevWindowLength = windowLength;
     }
 }
 

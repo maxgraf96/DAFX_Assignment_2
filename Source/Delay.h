@@ -20,6 +20,7 @@ public:
     void prepare(const juce::dsp::ProcessSpec& spec);
     void process(AudioBuffer<float>& buffer) noexcept;
     void reset() noexcept;
+	void windowChanged();
     size_t getNumChannels() const noexcept;
     void setMaxDelayTime(float newValue);
     void setFeedback(float newValue) noexcept;
