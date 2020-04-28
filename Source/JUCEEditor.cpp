@@ -53,7 +53,7 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    label->setBounds (20, 288, 150, 24);
+    label->setBounds (20, 268, 150, 24);
 
     windowLengthSlider.reset (new Slider ("windowLengthSlider"));
     addAndMakeVisible (windowLengthSlider.get());
@@ -75,7 +75,7 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     label2->setColour (TextEditor::textColourId, Colours::black);
     label2->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    label2->setBounds (20, 381, 236, 24);
+    label2->setBounds (20, 361, 236, 24);
 
     delayFeedbackSlider.reset (new Slider ("delayFeedbackSlider"));
     addAndMakeVisible (delayFeedbackSlider.get());
@@ -97,7 +97,7 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     label3->setColour (TextEditor::textColourId, Colours::black);
     label3->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    label3->setBounds (20, 476, 150, 24);
+    label3->setBounds (20, 456, 150, 24);
 
     modeToggle.reset (new ToggleButton ("modeToggle"));
     addAndMakeVisible (modeToggle.get());
@@ -113,7 +113,7 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     adsrGroup->setTextLabelPosition (Justification::centredLeft);
     adsrGroup->setColour (GroupComponent::textColourId, Colours::aliceblue);
 
-    adsrGroup->setBounds (365, 282, 280, 280);
+    adsrGroup->setBounds (365, 262, 280, 280);
 
     attackSlider.reset (new Slider ("attackSlider"));
     addAndMakeVisible (attackSlider.get());
@@ -168,7 +168,7 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     dynamicVelocityToggle->addListener (this);
     dynamicVelocityToggle->setColour (ToggleButton::textColourId, Colours::aliceblue);
 
-    dynamicVelocityToggle->setBounds (707, 288, 150, 24);
+    dynamicVelocityToggle->setBounds (707, 267, 150, 24);
 
     adaptiveDecayToggle.reset (new ToggleButton ("adaptiveDecayToggle"));
     addAndMakeVisible (adaptiveDecayToggle.get());
@@ -240,6 +240,24 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     releaseLabel->setColour (TextEditor::textColourId, Colours::black);
     releaseLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
+    mainFilterCutoffSlider.reset (new Slider ("mainFilterCutoffSlider"));
+    addAndMakeVisible (mainFilterCutoffSlider.get());
+    mainFilterCutoffSlider->setRange (1, 20000, 1);
+    mainFilterCutoffSlider->setSliderStyle (Slider::LinearBar);
+    mainFilterCutoffSlider->setTextBoxStyle (Slider::TextBoxLeft, false, 80, 20);
+    mainFilterCutoffSlider->addListener (this);
+
+    mainFilterCutoffSlider->setBounds (707, 416, 130, 24);
+
+    mainFilterQSlider.reset (new Slider ("mainFilterQSlider"));
+    addAndMakeVisible (mainFilterQSlider.get());
+    mainFilterQSlider->setRange (0.001, 3, 1);
+    mainFilterQSlider->setSliderStyle (Slider::LinearBar);
+    mainFilterQSlider->setTextBoxStyle (Slider::TextBoxLeft, false, 80, 20);
+    mainFilterQSlider->addListener (this);
+
+    mainFilterQSlider->setBounds (857, 416, 130, 24);
+
 
     //[UserPreSize]
     //[/UserPreSize]
@@ -267,6 +285,8 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     dynamicVelocityAttachment.reset(new ButtonAttachment(valueTreeState, "dynamicVelocity", *dynamicVelocityToggle));
     adaptiveDecayAttachment.reset(new ButtonAttachment(valueTreeState, "adaptiveDecay", *adaptiveDecayToggle));
     pitchBendRangeAttachment.reset(new SliderAttachment(valueTreeState, "pitchBendRange", *pitchBendRangeSlider));
+    mainFilterCutoffAttachment.reset(new SliderAttachment(valueTreeState, "mainFilterCutoff", *mainFilterCutoffSlider));
+    mainFilterQAttachment.reset(new SliderAttachment(valueTreeState, "mainFilterQ", *mainFilterQSlider));
 
     // Set finer step size
     //double interval = 0.0001;
@@ -297,29 +317,39 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     attackSlider->setTextValueSuffix(" ms");
     decaySlider->setTextValueSuffix(" ms");
     releaseSlider->setTextValueSuffix(" ms");
+
+    // Setup filter graph for EQ
+    tooltip.reset(new TooltipWindow(this, 100));
+    filterGraph.reset(new FilterGraph(48000.0, p, *tooltip));
+    filterGraph->setBounds(705, 456, 282, 128);
+    addAndMakeVisible(*filterGraph);
+
+    mainFilterCutoffSlider->setSkewFactorFromMidPoint(500.0);
     //[/Constructor]
 }
 
 JUCEEditor::~JUCEEditor()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
-    //valueTreeState->removeParameterListener("mode", this);
-    //valueTreeState->removeParameterListener("dynamicVelocity", this);
-    //valueTreeState->removeParameterListener("adaptiveDecay", this);
 
+    valueTreeState.removeParameterListener("mode", this);
+    valueTreeState.removeParameterListener("dynamicVelocity", this);
+    valueTreeState.removeParameterListener("adaptiveDecay", this);
+
+    // Reset attachments
     positionAttachment = nullptr;
     windowLengthAttachment = nullptr;
     delayFeedbackAttachment = nullptr;
     modeAttachment = nullptr;
-
     attackAttachment = nullptr;
     decayAttachment = nullptr;
     sustainAttachment = nullptr;
     releaseAttachment = nullptr;
-
     dynamicVelocityAttachment = nullptr;
     adaptiveDecayAttachment = nullptr;
     pitchBendRangeAttachment = nullptr;
+    mainFilterCutoffAttachment = nullptr;
+    mainFilterQAttachment = nullptr;
 
     //[/Destructor_pre]
 
@@ -343,6 +373,8 @@ JUCEEditor::~JUCEEditor()
     decayLabel = nullptr;
     sustainLabel = nullptr;
     releaseLabel = nullptr;
+    mainFilterCutoffSlider = nullptr;
+    mainFilterQSlider = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -446,20 +478,20 @@ void JUCEEditor::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    positionSlider->setBounds (24, 340 - (48 / 2), 280, 48);
-    windowLengthSlider->setBounds (24, 433 - (48 / 2), 280, 48);
-    delayFeedbackSlider->setBounds (24, 528 - (48 / 2), 280, 48);
-    attackSlider->setBounds (365 + 29, 282 + 32, 100, 100);
-    decaySlider->setBounds ((365 + 29) + 100 - -24, 282 + 32, 100, 100);
-    sustainSlider->setBounds (365 + 29, 282 + 148, 100, 100);
-    releaseSlider->setBounds ((365 + 29) + 100 - -24, 282 + 148, 100, 100);
-    adaptiveDecayToggle->setBounds (707, 288 + 28, 150, 24);
-    pitchBendRangeSlider->setBounds (707, ((288 + 28) + 28) + 28, 280, 48);
-    pitchBendRangeLabel->setBounds (703, (288 + 28) + 28, 280, 24);
-    attackLabel->setBounds ((365 + 29) + 100 / 2 + -10, (282 + 32) + 100 / 2 + -22, 20, 24);
-    decayLabel->setBounds (((365 + 29) + 100 - -24) + 100 / 2 + -10, (282 + 32) + 100 / 2 + -22, 20, 24);
-    sustainLabel->setBounds ((365 + 29) + 100 / 2 + -10, (282 + 148) + 100 / 2 + -22, 20, 24);
-    releaseLabel->setBounds (((365 + 29) + 100 - -24) + 100 / 2 + -10, (282 + 148) + 100 / 2 + -22, 20, 24);
+    positionSlider->setBounds (24, 320 - (48 / 2), 280, 48);
+    windowLengthSlider->setBounds (24, 413 - (48 / 2), 280, 48);
+    delayFeedbackSlider->setBounds (24, 508 - (48 / 2), 280, 48);
+    attackSlider->setBounds (365 + 29, 262 + 32, 100, 100);
+    decaySlider->setBounds ((365 + 29) + 100 - -24, 262 + 32, 100, 100);
+    sustainSlider->setBounds (365 + 29, 262 + 148, 100, 100);
+    releaseSlider->setBounds ((365 + 29) + 100 - -24, 262 + 148, 100, 100);
+    adaptiveDecayToggle->setBounds (707, 267 + 28, 150, 24);
+    pitchBendRangeSlider->setBounds (707, ((267 + 28) + 28) + 28, 280, 48);
+    pitchBendRangeLabel->setBounds (703, (267 + 28) + 28, 280, 24);
+    attackLabel->setBounds ((365 + 29) + 100 / 2 + -10, (262 + 32) + 100 / 2 + -22, 20, 24);
+    decayLabel->setBounds (((365 + 29) + 100 - -24) + 100 / 2 + -10, (262 + 32) + 100 / 2 + -22, 20, 24);
+    sustainLabel->setBounds ((365 + 29) + 100 / 2 + -10, (262 + 148) + 100 / 2 + -22, 20, 24);
+    releaseLabel->setBounds (((365 + 29) + 100 - -24) + 100 / 2 + -10, (262 + 148) + 100 / 2 + -22, 20, 24);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -508,6 +540,16 @@ void JUCEEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     {
         //[UserSliderCode_pitchBendRangeSlider] -- add your slider handling code here..
         //[/UserSliderCode_pitchBendRangeSlider]
+    }
+    else if (sliderThatWasMoved == mainFilterCutoffSlider.get())
+    {
+        //[UserSliderCode_mainFilterCutoffSlider] -- add your slider handling code here..
+        //[/UserSliderCode_mainFilterCutoffSlider]
+    }
+    else if (sliderThatWasMoved == mainFilterQSlider.get())
+    {
+        //[UserSliderCode_mainFilterQSlider] -- add your slider handling code here..
+        //[/UserSliderCode_mainFilterQSlider]
     }
 
     //[UsersliderValueChanged_Post]
@@ -612,34 +654,34 @@ BEGIN_JUCER_METADATA
     <RECT pos="0 0 100% 200" fill="solid: ff2c3e50" hasStroke="0"/>
   </BACKGROUND>
   <SLIDER name="positionSlider" id="554566d500748e9" memberName="positionSlider"
-          virtualName="" explicitFocusOrder="0" pos="24 340c 280 48" tooltip="Position in the loaded sample."
+          virtualName="" explicitFocusOrder="0" pos="24 320c 280 48" tooltip="Position in the loaded sample."
           trackcol="8a0a170c" textboxtext="fff0f8ff" min="0.0" max="10.0"
           int="0.0" style="LinearBar" textBoxPos="TextBoxAbove" textBoxEditable="0"
           textBoxWidth="80" textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="new label" id="3221212aa8d2c3ca" memberName="label" virtualName=""
-         explicitFocusOrder="0" pos="20 288 150 24" textCol="fff0f8ff"
+         explicitFocusOrder="0" pos="20 268 150 24" textCol="fff0f8ff"
          edTextCol="ff000000" edBkgCol="0" labelText="Window position"
          editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
          fontname="Default font" fontsize="18.0" kerning="0.0" bold="0"
          italic="0" justification="33"/>
   <SLIDER name="windowLengthSlider" id="4257b19175426af7" memberName="windowLengthSlider"
-          virtualName="" explicitFocusOrder="0" pos="24 433c 280 48" tooltip="Position in the loaded sample."
+          virtualName="" explicitFocusOrder="0" pos="24 413c 280 48" tooltip="Position in the loaded sample."
           trackcol="8a0a170c" textboxtext="fff0f8ff" min="0.0" max="2400.0"
           int="1.0" style="LinearBar" textBoxPos="TextBoxAbove" textBoxEditable="0"
           textBoxWidth="80" textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="new label" id="d2a8b098d2e15d0d" memberName="label2" virtualName=""
-         explicitFocusOrder="0" pos="20 381 236 24" textCol="fff0f8ff"
+         explicitFocusOrder="0" pos="20 361 236 24" textCol="fff0f8ff"
          edTextCol="ff000000" edBkgCol="0" labelText="Window length (samples)"
          editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
          fontname="Default font" fontsize="18.0" kerning="0.0" bold="0"
          italic="0" justification="33"/>
   <SLIDER name="delayFeedbackSlider" id="8d84074f7c43be5a" memberName="delayFeedbackSlider"
-          virtualName="" explicitFocusOrder="0" pos="24 528c 280 48" tooltip="Position in the loaded sample."
+          virtualName="" explicitFocusOrder="0" pos="24 508c 280 48" tooltip="Position in the loaded sample."
           trackcol="8a0a170c" textboxtext="fff0f8ff" min="0.0" max="1.0"
           int="0.0001" style="LinearBar" textBoxPos="TextBoxAbove" textBoxEditable="0"
           textBoxWidth="80" textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="new label" id="245a3d6c800998a1" memberName="label3" virtualName=""
-         explicitFocusOrder="0" pos="20 476 150 24" textCol="fff0f8ff"
+         explicitFocusOrder="0" pos="20 456 150 24" textCol="fff0f8ff"
          edTextCol="ff000000" edBkgCol="0" labelText="Delay feedback"
          editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
          fontname="Default font" fontsize="18.0" kerning="0.0" bold="0"
@@ -649,7 +691,7 @@ BEGIN_JUCER_METADATA
                 buttonText="" connectedEdges="0" needsCallback="1" radioGroupId="0"
                 state="0"/>
   <GROUPCOMPONENT name="adsrGroup" id="df54a6fd7be47f34" memberName="adsrGroup"
-                  virtualName="" explicitFocusOrder="0" pos="365 282 280 280" textcol="fff0f8ff"
+                  virtualName="" explicitFocusOrder="0" pos="365 262 280 280" textcol="fff0f8ff"
                   title="Controls" textpos="33"/>
   <SLIDER name="attackSlider" id="e43f7da2edeaeb5f" memberName="attackSlider"
           virtualName="" explicitFocusOrder="0" pos="29 32 100 100" posRelativeX="df54a6fd7be47f34"
@@ -680,7 +722,7 @@ BEGIN_JUCER_METADATA
           textBoxPos="TextBoxBelow" textBoxEditable="1" textBoxWidth="80"
           textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <TOGGLEBUTTON name="dynamicVelocityToggle" id="7a2154e14461c851" memberName="dynamicVelocityToggle"
-                virtualName="" explicitFocusOrder="0" pos="707 288 150 24" tooltip="Enable/disable dynamic velocity"
+                virtualName="" explicitFocusOrder="0" pos="707 267 150 24" tooltip="Enable/disable dynamic velocity"
                 txtcol="fff0f8ff" buttonText="Dynamic velocity" connectedEdges="0"
                 needsCallback="1" radioGroupId="0" state="0"/>
   <TOGGLEBUTTON name="adaptiveDecayToggle" id="859efb8c26bba33b" memberName="adaptiveDecayToggle"
@@ -726,6 +768,16 @@ BEGIN_JUCER_METADATA
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Default font"
          fontsize="15.0" kerning="0.0" bold="1" italic="0" justification="33"
          typefaceStyle="Bold"/>
+  <SLIDER name="mainFilterCutoffSlider" id="115aba219b490400" memberName="mainFilterCutoffSlider"
+          virtualName="" explicitFocusOrder="0" pos="707 416 130 24" min="1.0"
+          max="20000.0" int="1.0" style="LinearBar" textBoxPos="TextBoxLeft"
+          textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1.0"
+          needsCallback="1"/>
+  <SLIDER name="mainFilterQSlider" id="c2fe6bf6fa7815cc" memberName="mainFilterQSlider"
+          virtualName="" explicitFocusOrder="0" pos="857 416 130 24" min="0.001"
+          max="3.0" int="1.0" style="LinearBar" textBoxPos="TextBoxLeft"
+          textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1.0"
+          needsCallback="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

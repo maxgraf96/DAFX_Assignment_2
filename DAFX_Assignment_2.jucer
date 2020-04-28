@@ -5,6 +5,12 @@
               companyName="Max Graf" companyWebsite="https://0405.at/" companyEmail="max.graf@live.at">
   <MAINGROUP id="qRMJEF" name="DAFX_Assignment_2">
     <GROUP id="{9F9A7A50-A8A3-5D1E-3E6D-AFA81AB820E1}" name="Source">
+      <GROUP id="{2DA83F1D-7513-A02C-F470-4D65327F42ED}" name="jucefiltergraph">
+        <FILE id="YeV2nW" name="FilterGraph.cpp" compile="1" resource="0" file="Source/jucefiltergraph/FilterGraph.cpp"/>
+        <FILE id="DTOeyT" name="FilterGraph.h" compile="0" resource="0" file="Source/jucefiltergraph/FilterGraph.h"/>
+        <FILE id="bHSbcI" name="FilterInfo.cpp" compile="1" resource="0" file="Source/jucefiltergraph/FilterInfo.cpp"/>
+        <FILE id="JlnBjO" name="FilterInfo.h" compile="0" resource="0" file="Source/jucefiltergraph/FilterInfo.h"/>
+      </GROUP>
       <FILE id="gUuJKF" name="JUCEEditor.cpp" compile="1" resource="0" file="Source/JUCEEditor.cpp"/>
       <FILE id="f4Igv9" name="JUCEEditor.h" compile="0" resource="0" file="Source/JUCEEditor.h"/>
       <FILE id="utkVNx" name="Voice.cpp" compile="1" resource="0" file="Source/Voice.cpp"/>

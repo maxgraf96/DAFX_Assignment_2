@@ -62,6 +62,12 @@ public:
     // Delay methods
     void setDelayFeedback(float delayFeedback);
 
+    // Main lowpass filter getter
+    std::array<juce::dsp::IIR::Filter<float>, 2>& getMainLowpassFilters();
+
+    void updateMainLowpassFilters(float cutoff, float q);
+    AudioProcessorValueTreeState& getVTS();
+
 private:
     // State management
     AudioProcessorValueTreeState parameters;
@@ -94,6 +100,9 @@ private:
     float* adaptiveDecayParam = nullptr;
     // Pitch bend range
     float* pitchBendRangeParam = nullptr;
+    // Main lowpass filter cutoff frequency and Q value
+    float* mainFilterCutoffParam = nullptr;
+    float* mainFilterQParam = nullptr;
 
     // ADSR parameters
     ADSR::Parameters adsrParams;
@@ -116,6 +125,9 @@ private:
     float mappedPitchWheelValue = 0.0f;
     // How far to shift up/down
     int pitchBendRange = 12;
+
+    // Main lowpass filter 
+    std::array<juce::dsp::IIR::Filter<float>, 2> mainLowpassFilters;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

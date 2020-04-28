@@ -66,6 +66,7 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
 
             // Fine-tune the string using an allpass filter as described in the KS-extension paper
             float tuned = tuningFilter.processSample(delayedSample);
+            //float tuned = delayedSample;
 
             // Get input sample from main buffer
             auto inputSample = input[i];

@@ -22,6 +22,7 @@
 //[Headers]     -- You can add your own extra header files here --
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "PluginProcessor.h"
+#include "jucefiltergraph/FilterGraph.h"
 
 typedef AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
 typedef AudioProcessorValueTreeState::ButtonAttachment ButtonAttachment;
@@ -76,12 +77,17 @@ private:
     std::unique_ptr<ButtonAttachment> dynamicVelocityAttachment;
     std::unique_ptr<ButtonAttachment> adaptiveDecayAttachment;
     std::unique_ptr<SliderAttachment> pitchBendRangeAttachment;
+    std::unique_ptr<SliderAttachment> mainFilterCutoffAttachment;
+    std::unique_ptr<SliderAttachment> mainFilterQAttachment;
 
     // Panel that holds audio sample (created in AudioProcessor)
     SamplePanel& samplePanel;
 
     void parameterChanged(const String& parameterID, float newValue) override;
 
+    std::unique_ptr<FilterGraph> filterGraph;
+
+    std::unique_ptr<TooltipWindow> tooltip;
     //[/UserVariables]
 
     //==============================================================================
@@ -105,6 +111,8 @@ private:
     std::unique_ptr<Label> decayLabel;
     std::unique_ptr<Label> sustainLabel;
     std::unique_ptr<Label> releaseLabel;
+    std::unique_ptr<Slider> mainFilterCutoffSlider;
+    std::unique_ptr<Slider> mainFilterQSlider;
 
 
     //==============================================================================

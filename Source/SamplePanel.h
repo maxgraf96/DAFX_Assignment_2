@@ -20,7 +20,7 @@
 class SamplePanel    : public Component, FilenameComponentListener, private Value::Listener, ChangeListener
 {
 public:
-    SamplePanel(int windowLength, AudioProcessorValueTreeState& vts);
+    SamplePanel(AudioProcessorValueTreeState& vts);
     ~SamplePanel();
 
     void paint (Graphics&) override;

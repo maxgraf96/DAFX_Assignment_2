@@ -13,10 +13,10 @@
 Identifier SamplePanel::currentFilePathID("currentFilePath");
 
 //==============================================================================
-SamplePanel::SamplePanel(int windowLength, AudioProcessorValueTreeState& vts)
+SamplePanel::SamplePanel(AudioProcessorValueTreeState& vts)
     : thumbnailCache(5), thumbnail(1024, formatManager, thumbnailCache), valueTreeState(vts)
 {
-    this->windowLength = windowLength;
+    this->windowLength = static_cast<int>(*vts.getRawParameterValue("windowLength"));
 
     // Initialise sample buffer
     sampleBuffer.reset(new AudioBuffer<float>());
@@ -290,8 +290,7 @@ void SamplePanel::thumbnailChanged()
 }
 
 void SamplePanel::setWindowLength(float windowLength) {
-    auto l = map(windowLength, 0.0, 1.0, WINDOW_LENGTH_MIN, WINDOW_LENGTH_MAX);
-    this->windowLength = static_cast<int>(l);
+    this->windowLength = static_cast<int>(windowLength);
 
     // Thread-safe repaint
     transportSource.sendChangeMessage();

@@ -91,11 +91,25 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             0,
             24,
             7
-        )
+        ),
+        std::make_unique<AudioParameterFloat>(
+            "mainFilterCutoff",
+            "Main Filter Cutoff Frequency",
+            1.0f, 
+            20000.0f,
+            18000.0f
+            ),
+        std::make_unique<AudioParameterFloat>(
+            "mainFilterQ",
+            "Main Filter Q",
+            0.001f,
+            3.0f,
+            0.707106781f
+            )
         })
 {
     // Initialise sample panel
-    samplePanel.reset(new SamplePanel(windowLength, parameters));
+    samplePanel.reset(new SamplePanel(parameters));
     sampleBuffer = samplePanel->getSampleBuffer();
 
     // Initialise listeners for parameters
@@ -110,6 +124,8 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     parameters.addParameterListener("dynamicVelocity", this);
     parameters.addParameterListener("adaptiveDecay", this);
     parameters.addParameterListener("pitchBendRange", this);
+    parameters.addParameterListener("mainFilterCutoff", this);
+    parameters.addParameterListener("mainFilterQ", this);
 
     positionParam = parameters.getRawParameterValue("position");
     windowLengthParam = parameters.getRawParameterValue("windowLength");
@@ -122,6 +138,8 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     dynamicVelocityParam = parameters.getRawParameterValue("dynamicVelocity");
     adaptiveDecayParam = parameters.getRawParameterValue("adaptiveDecay");
     pitchBendRangeParam = parameters.getRawParameterValue("pitchBendRange");
+    mainFilterCutoffParam = parameters.getRawParameterValue("mainFilterCutoff");
+    mainFilterQParam = parameters.getRawParameterValue("mainFilterQ");
 
     // Set Open Sans as default font
     LookAndFeel::getDefaultLookAndFeel().setDefaultSansSerifTypefaceName("Open Sans");
@@ -200,10 +218,10 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     samplePanel->setSampleRate(sampleRate);
 
     // Prepare delay object
-    auto delayProcessContext = new juce::dsp::ProcessSpec();
-    delayProcessContext->maximumBlockSize = samplesPerBlock;
-    delayProcessContext->numChannels = 2;
-    delayProcessContext->sampleRate = sampleRate;
+    auto processContext = new juce::dsp::ProcessSpec();
+    processContext->maximumBlockSize = samplesPerBlock;
+    processContext->numChannels = 2;
+    processContext->sampleRate = sampleRate;
 
     // Clear voices (for some reason prepareToPlay() can be called twice per startup)
     voices.clear();
@@ -212,7 +230,7 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     bool isADSRMode = *modeParam > 0.0 ? true : false;
     bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
     for (int i = 0; i < NUM_VOICES; i++) {
-        voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *delayProcessContext, int(2 * sampleRate), noteNumberForVoice)));
+        voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *processContext, int(2 * sampleRate), noteNumberForVoice)));
         voices[i]->setDelayFeedback(*delayFeedbackParam);
         voices[i]->setDelayWet(1.0);
         voices[i]->setADSRParams(adsrParams);
@@ -224,6 +242,13 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
         // -1 means "not playing", if a voice is playing this array will contain the MIDI
         // note number the voice is currently playing
         noteNumberForVoice[i] = -1;
+    }
+
+    // Setup main lowpass filters
+    for (auto& f : mainLowpassFilters)
+    {
+        f.prepare(*processContext);
+        f.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, *mainFilterCutoffParam, *mainFilterQParam);
     }
 }
 
@@ -272,24 +297,34 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     auto numSamples = buffer.getNumSamples();
     
     // ------------------------ MIDI ------------------------ 
+    // Swap buffer for MIDI messages
     MidiBuffer processedMidi;
+    // Placeholder for MIDI times
     int time;
+    // Placeholder for the current MIDI message
     MidiMessage m;
 
+    // Iterate over all incoming MIDI messages
     for (MidiBuffer::Iterator i(midiMessages); i.getNextEvent(m, time);)
     {
+        // Get the MIDI note number
         auto noteNumber = m.getNoteNumber();
+        // Note on handling
         if (m.isNoteOn())
         {
             m = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber(), m.getVelocity());
             uint8 velocity = m.getVelocity();
+            // If dynamic velocity handling is enabled the incoming MIDI velocity is used to attenuate the buffer
+            // If it is disabled the maximum MIDI velocity of 127 is used
             if (*dynamicVelocityParam == 0.0f) {
                 velocity = 127;
             }
 
             // Check if note already exists. If so, retrigger
             bool isRetrigger = false;
-            int selectedVoiceIdx = -1;
+            // Selected voice index will contain the index of the voice selected for trigger/retriggering
+            int selectedVoiceIdx = NOT_PLAYING;
+            // Iterate over array of voices and check if the incoming MIDI note is already playing
             for (int i = 0; i < NUM_VOICES; i++) {
                 if (noteNumberForVoice[i] == noteNumber) {
                     // Current incoming note is alreay playing => retrigger
@@ -299,11 +334,12 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
                 }
             }
 
+            // If the incoming note is already playing simply retrigger it
             if (isRetrigger) {
                 voices[selectedVoiceIdx]->noteOn(noteNumber, velocity, samplePanelStartIdx, windowLength);
             }
+            // If it's a completely new note find the next free voice and trigger
             else {
-                // If it's a completely new note find the next free voice and trigger
                 for (int i = 0; i < NUM_VOICES; i++) {
                     if (noteNumberForVoice[i] == Voice::NOT_PLAYING) {
                         voices[i]->noteOn(noteNumber, velocity, samplePanelStartIdx, windowLength);
@@ -314,14 +350,16 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
             }
 
             // Set in map
-            if (selectedVoiceIdx > -1) {
+            if (selectedVoiceIdx > NOT_PLAYING) {
                 noteNumberForVoice[selectedVoiceIdx] = noteNumber;
             }
             else {
                 // More incoming notes than available slot in voices array
                 // Either don't play or replace longest playing note
+                // Current behaviour is to ignore new incoming notes if all slots (16) are taken
             }
         }
+        // Note off handling
         if (m.isNoteOff())
         {
             // Get voice for note number
@@ -333,17 +371,19 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
             }
         }
 
-        // Glissandi/Slurs controlled by the MIDI pitch bend
+        // Glissandi/pitch-bend controlled by MIDI pitch wheel
         if (m.isPitchWheel()) {
             float pitchWheelValue = static_cast<float>(m.getPitchWheelValue());
-            mappedPitchWheelValue = map(pitchWheelValue, 0.0f, 16384.0f, -1.0f, 1.0f);
+            // Map to [-1.0, 1.0] for tuning in voices
+            mappedPitchWheelValue = map(pitchWheelValue, 0.0f, MIDI_PITCH_WHEEL_MAX_VAL, -1.0f, 1.0f);
         }
 
         processedMidi.addEvent(m, time);
     }
     midiMessages.swapWith(processedMidi);
+    // ------------------------ MIDI end ------------------------ 
 
-    // ------------------------ SOUND ------------------------ 
+    // ------------------------ SOUND --------------------------- 
     if (sampleBuffer->getNumChannels() > 0) {
         // Get current window length from parameter
         windowLength = *windowLengthParam;
@@ -353,8 +393,12 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         // This is the position the user selected
         int position = round(samplePanel->getSamplePosition() * getSampleRate());
         // Hard limit global position
+        // (disallow user from choosing positions that would lead to part of the window being out of the sample range)
         if (position + halfWindow >= totalSampleLength) {
             position = totalSampleLength - halfWindow;
+        }
+        if (position - halfWindow <= 0) {
+            position = 0 + halfWindow;
         }
 
         // Calculate window around this position
@@ -378,12 +422,37 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         // Update previous sample panel start index and window length
         prevSamplePanelStartIdx = samplePanelStartIdx;
         prevWindowLength = windowLength;
+
+        // Feed through main lowpass filter
+        for (int channel = 0; channel < buffer.getNumChannels(); channel++) {
+            auto writer = buffer.getWritePointer(channel);
+            for (int i = 0; i < numSamples; i++) {
+                writer[i] = mainLowpassFilters[channel].processSample(writer[i]);
+            }
+        }
     }
+    // ------------------------ SOUND end ---------------------------
 }
 
 void Dafx_assignment_2AudioProcessor::setDelayFeedback(float delayFeedback) {
     for (auto&& voice : voices)
         voice->setDelayFeedback(delayFeedback);
+}
+
+std::array<juce::dsp::IIR::Filter<float>, 2>& Dafx_assignment_2AudioProcessor::getMainLowpassFilters()
+{
+    return mainLowpassFilters;
+}
+
+void Dafx_assignment_2AudioProcessor::updateMainLowpassFilters(float cutoff, float q)
+{
+    mainLowpassFilters[0].coefficients = mainLowpassFilters[0].coefficients->makeLowPass(getSampleRate(), cutoff, q);
+    mainLowpassFilters[1].coefficients = mainLowpassFilters[1].coefficients->makeLowPass(getSampleRate(), cutoff, q);
+}
+
+AudioProcessorValueTreeState& Dafx_assignment_2AudioProcessor::getVTS()
+{
+    return parameters;
 }
 
 void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID, float newValue)
@@ -442,6 +511,12 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
         for (auto&& voice : voices) {
             voice->setPitchBendRange(static_cast<int>(newValue));
         }
+    }
+    if (parameterID == "mainFilterCutoff") {
+        updateMainLowpassFilters(newValue, *mainFilterQParam);
+    }
+    if (parameterID == "mainFilterQ") {
+        updateMainLowpassFilters(*mainFilterCutoffParam, newValue);
     }
 }
 
