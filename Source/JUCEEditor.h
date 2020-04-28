@@ -75,6 +75,7 @@ private:
     std::unique_ptr<ButtonAttachment> modeAttachment;
     std::unique_ptr<ButtonAttachment> dynamicVelocityAttachment;
     std::unique_ptr<ButtonAttachment> adaptiveDecayAttachment;
+    std::unique_ptr<SliderAttachment> pitchBendRangeAttachment;
 
     // Panel that holds audio sample (created in AudioProcessor)
     SamplePanel& samplePanel;
@@ -98,6 +99,12 @@ private:
     std::unique_ptr<Slider> releaseSlider;
     std::unique_ptr<ToggleButton> dynamicVelocityToggle;
     std::unique_ptr<ToggleButton> adaptiveDecayToggle;
+    std::unique_ptr<Slider> pitchBendRangeSlider;
+    std::unique_ptr<Label> pitchBendRangeLabel;
+    std::unique_ptr<Label> attackLabel;
+    std::unique_ptr<Label> decayLabel;
+    std::unique_ptr<Label> sustainLabel;
+    std::unique_ptr<Label> releaseLabel;
 
 
     //==============================================================================

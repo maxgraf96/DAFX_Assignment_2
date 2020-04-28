@@ -28,7 +28,7 @@ public:
     void setWetLevel(float newValue) noexcept;
     void setDelayTime(size_t channel, int newValue);
 
-    void prepareFineTune(double fundamentalFrequency, float pitchWheelValue);
+    void prepareFineTune(double fundamentalFrequency, int pitchBendRange, float pitchWheelValue);
     void setSampleRate(double sr);
     void setAdaptiveDecay(bool isAdaptiveDecay);
 

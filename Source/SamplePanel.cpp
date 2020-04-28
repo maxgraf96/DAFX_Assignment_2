@@ -14,7 +14,7 @@ Identifier SamplePanel::currentFilePathID("currentFilePath");
 
 //==============================================================================
 SamplePanel::SamplePanel(int windowLength, AudioProcessorValueTreeState& vts)
-    : thumbnailCache(5), thumbnail(512, formatManager, thumbnailCache), valueTreeState(vts)
+    : thumbnailCache(5), thumbnail(1024, formatManager, thumbnailCache), valueTreeState(vts)
 {
     this->windowLength = windowLength;
 
@@ -100,7 +100,7 @@ void SamplePanel::paintIfNoFileLoaded(Graphics& g, const Rectangle<int>& thumbna
 void SamplePanel::paintIfFileLoaded(Graphics& g, const Rectangle<int>& thumbnailBounds)
 {
     // Draw background
-    g.setColour(Colours::darkgrey);
+    g.setColour(Colour(0xff220901));
     g.fillRect(thumbnailBounds);
 
     // Draw waveform
@@ -108,12 +108,11 @@ void SamplePanel::paintIfFileLoaded(Graphics& g, const Rectangle<int>& thumbnail
     g.setColour(Colours::lightgrey);
     thumbnail.drawChannels(g,
         thumbnailBounds,
-        0.0,                                    // start time
-        audioLength,             // end time
-        1.0f);                                  // vertical zoom
-
+        0.0,                        // start time
+        audioLength,                // end time
+        0.9f);                      // vertical zoom
     // Draw time marker
-    g.setColour(Colours::green);
+    g.setColour(Colour(0xff5EB0A7));
 
     auto audioPosition(transportSource.getCurrentPosition());
     auto drawPosition((audioPosition / audioLength) * thumbnailBounds.getWidth()

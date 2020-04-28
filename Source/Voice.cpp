@@ -40,7 +40,7 @@ void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int 
     delay.reset();
 
     // Prepare delay for fine-tuning (also sets delay length)
-    delay.prepareFineTune(currentFrequency, 0.0f);
+    delay.prepareFineTune(currentFrequency, pitchBendRange, 0.0f);
 
     // Load window into playback buffer
     for (int channel = 0; channel < sampleBuffer.getNumChannels(); channel++)
@@ -81,11 +81,10 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
             buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, windowLength);
 
         delay.windowChanged();
-        delay.prepareFineTune(currentFrequency, pitchWheelValue);
-        bufferPosition = int(windowLength / 2);
+        bufferPosition = 0;
     }
 
-    delay.prepareFineTune(currentFrequency, pitchWheelValue);
+    delay.prepareFineTune(currentFrequency, pitchBendRange, pitchWheelValue);
 
     // Get number of samples to copy - this corresponds to the block size specified by the plugin host
     auto numSamplesToCopy = mainBuffer.getNumSamples();
@@ -188,4 +187,9 @@ void Voice::setADSRMode(bool mode)
 
 void Voice::setAdaptiveDecay(bool isAdaptiveDecay) {
     delay.setAdaptiveDecay(isAdaptiveDecay);
+}
+
+void Voice::setPitchBendRange(int pitchBendRange)
+{
+    this->pitchBendRange = pitchBendRange;
 }

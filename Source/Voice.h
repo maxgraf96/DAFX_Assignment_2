@@ -33,8 +33,8 @@ public:
     static const int NOT_PLAYING = -1;
     void setADSRParams(ADSR::Parameters& params);
     void setADSRMode(bool mode);
-
 	void setAdaptiveDecay(bool on);
+    void setPitchBendRange(int pitchBendRange);
     void resetVoice();
 
 private:
@@ -66,4 +66,7 @@ private:
 
     float currentVelocity = 0.0f;
     double currentFrequency = 0.0f;
+
+    // Pitch bend range in semitones
+    int pitchBendRange = 0;
 };

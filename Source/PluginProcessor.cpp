@@ -33,12 +33,12 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             1.0,
             0.0
             ),
-        std::make_unique<AudioParameterFloat>(
+        std::make_unique<AudioParameterInt>(
             "windowLength",
             "Window Length",
-            0.0,
-            1.0,
-            0.1),
+            WINDOW_LENGTH_MIN,
+            WINDOW_LENGTH_MAX,
+            WINDOW_LENGTH_MIN),
         std::make_unique<AudioParameterFloat>(
             "delayFeedback",
             "Delay Feedback",
@@ -84,7 +84,14 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
         std::make_unique<AudioParameterBool>(
             "adaptiveDecay",
             "Adaptive decay",
-            false)
+            false),
+        std::make_unique<AudioParameterInt>(
+            "pitchBendRange",
+            "Pitch Bend Range",
+            0,
+            24,
+            7
+        )
         })
 {
     // Initialise sample panel
@@ -102,6 +109,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     parameters.addParameterListener("release", this);
     parameters.addParameterListener("dynamicVelocity", this);
     parameters.addParameterListener("adaptiveDecay", this);
+    parameters.addParameterListener("pitchBendRange", this);
 
     positionParam = parameters.getRawParameterValue("position");
     windowLengthParam = parameters.getRawParameterValue("windowLength");
@@ -113,6 +121,10 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     releaseParam = parameters.getRawParameterValue("release");
     dynamicVelocityParam = parameters.getRawParameterValue("dynamicVelocity");
     adaptiveDecayParam = parameters.getRawParameterValue("adaptiveDecay");
+    pitchBendRangeParam = parameters.getRawParameterValue("pitchBendRange");
+
+    // Set Open Sans as default font
+    LookAndFeel::getDefaultLookAndFeel().setDefaultSansSerifTypefaceName("Open Sans");
 }
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
@@ -206,6 +218,7 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
         voices[i]->setADSRParams(adsrParams);
         voices[i]->setADSRMode(isADSRMode);
         voices[i]->setAdaptiveDecay(isAdaptiveDecay);
+        voices[i]->setPitchBendRange(static_cast<int>(*pitchBendRangeParam));
 
         // Initialise note number to voice map
         // -1 means "not playing", if a voice is playing this array will contain the MIDI
@@ -324,8 +337,6 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         if (m.isPitchWheel()) {
             float pitchWheelValue = static_cast<float>(m.getPitchWheelValue());
             mappedPitchWheelValue = map(pitchWheelValue, 0.0f, 16384.0f, -1.0f, 1.0f);
-
-
         }
 
         processedMidi.addEvent(m, time);
@@ -335,7 +346,7 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     // ------------------------ SOUND ------------------------ 
     if (sampleBuffer->getNumChannels() > 0) {
         // Get current window length from parameter
-        windowLength = map(*windowLengthParam, 0.0, 1.0, WINDOW_LENGTH_MIN, WINDOW_LENGTH_MAX);
+        windowLength = *windowLengthParam;
         int totalSampleLength = sampleBuffer->getNumSamples();
         int halfWindow = int(windowLength / 2);
         // Get currently selected position in sample (global, coming from SamplePanel)
@@ -426,6 +437,11 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
         else
             *adaptiveDecayParam = 0.0f;
         shouldVoicesChange = true;
+    }
+    if (parameterID == "pitchBendRange") {
+        for (auto&& voice : voices) {
+            voice->setPitchBendRange(static_cast<int>(newValue));
+        }
     }
 }
 

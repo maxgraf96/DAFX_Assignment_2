@@ -13,7 +13,6 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "SamplePanel.h"
 #include "Delay.h"
-#include "dywapitchtrack-master/src/dywapitchtrack.h"
 #include "Voice.h"
 #include "Constants.h"
 
@@ -93,6 +92,8 @@ private:
     // Whether to use the same velocity for every stroke
     float* dynamicVelocityParam = nullptr;
     float* adaptiveDecayParam = nullptr;
+    // Pitch bend range
+    float* pitchBendRangeParam = nullptr;
 
     // ADSR parameters
     ADSR::Parameters adsrParams;

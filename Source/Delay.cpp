@@ -133,10 +133,10 @@ void Delay::setDelayTime(size_t channel, int newValueSamples)
     delayTimesSample[channel] = newValueSamples;
 }
 
-void Delay::prepareFineTune(double fundamentalFrequency, float pitchWheelValue)
+void Delay::prepareFineTune(double fundamentalFrequency, int pitchBendRange, float pitchWheelValue)
 {
     // Adjust f0 based on current pitch-wheel value
-    auto semitoneRangeInCent = 50.0;
+    auto semitoneRangeInCent = pitchBendRange * 100.0f;
     auto currentRange = pitchWheelValue * semitoneRangeInCent;
     
     // Get the current detune in cents for the incoming pitch bend value
