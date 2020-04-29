@@ -15,3 +15,7 @@ const int NUM_VOICES = 16;
 const int NOT_PLAYING = -1;
 const float MIDI_PITCH_WHEEL_MAX_VAL = 16384.0f;
 const double root = std::exp(std::log(2) / 1200);
+
+const NormalisableRange<float> adsrRange(0, 3000, 1, 0.3f, false);
+const NormalisableRange<float> delayFeedbackRange(0.80, 1.0f, 0.001f, 2.0f, false);
+const NormalisableRange<float> mainFilterCutoffRange(1.0, 20000.0f, 1.0f, 0.3f, false);

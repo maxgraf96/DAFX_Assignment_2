@@ -14,7 +14,7 @@
 Dafx_assignment_2AudioProcessorEditor::Dafx_assignment_2AudioProcessorEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueTreeState& vts, SamplePanel& samplePanel)
     : AudioProcessorEditor (&p), processor (p), valueTreeState(vts)
 {
-    setSize(1024, 600);
+    setSize(1024, 700);
 
     editor.reset(new JUCEEditor(p, vts, samplePanel));
     addAndMakeVisible(*editor);

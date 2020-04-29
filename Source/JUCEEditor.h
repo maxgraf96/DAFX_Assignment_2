@@ -79,6 +79,7 @@ private:
     std::unique_ptr<SliderAttachment> pitchBendRangeAttachment;
     std::unique_ptr<SliderAttachment> mainFilterCutoffAttachment;
     std::unique_ptr<SliderAttachment> mainFilterQAttachment;
+    std::unique_ptr<SliderAttachment> mainOutputGainAttachment;
 
     // Panel that holds audio sample (created in AudioProcessor)
     SamplePanel& samplePanel;
@@ -113,6 +114,11 @@ private:
     std::unique_ptr<Label> releaseLabel;
     std::unique_ptr<Slider> mainFilterCutoffSlider;
     std::unique_ptr<Slider> mainFilterQSlider;
+    std::unique_ptr<Label> filterCutoffLabel;
+    std::unique_ptr<Label> filterQLabel;
+    std::unique_ptr<Slider> mainOutputGainSlider;
+    std::unique_ptr<Label> mainOutputGainLabel;
+    std::unique_ptr<Label> mainOutputGainValLabel;
 
 
     //==============================================================================

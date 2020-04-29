@@ -103,6 +103,7 @@ private:
     // Main lowpass filter cutoff frequency and Q value
     float* mainFilterCutoffParam = nullptr;
     float* mainFilterQParam = nullptr;
+    float* mainOutputGainParam = nullptr;
 
     // ADSR parameters
     ADSR::Parameters adsrParams;

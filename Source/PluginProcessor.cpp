@@ -22,7 +22,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
 #endif
     )
 #endif
-    ,parameters(*this,
+    , parameters(*this,
         nullptr, // No undo manager
         Identifier("DAFX2"),
         {
@@ -42,25 +42,22 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
         std::make_unique<AudioParameterFloat>(
             "delayFeedback",
             "Delay Feedback",
-            0.9,
-            1.0,
+            delayFeedbackRange,
             0.98),
         std::make_unique<AudioParameterBool>(
             "mode",
             "Mode",
             false),
-        std::make_unique<AudioParameterInt>(
+        std::make_unique<AudioParameterFloat>(
             "attack",
             "Attack",
-            0,
-            2000,
+            adsrRange,
             0
         ),
-        std::make_unique<AudioParameterInt>(
+        std::make_unique<AudioParameterFloat>(
             "decay",
             "Decay",
-            0,
-            1000,
+            adsrRange,
             0
         ),
         std::make_unique<AudioParameterFloat>(
@@ -70,11 +67,10 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             1.0,
             1.0
         ),
-        std::make_unique<AudioParameterInt>(
+        std::make_unique<AudioParameterFloat>(
             "release",
             "Release",
-            0,
-            3000,
+            adsrRange,
             0
         ),
         std::make_unique<AudioParameterBool>(
@@ -95,8 +91,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
         std::make_unique<AudioParameterFloat>(
             "mainFilterCutoff",
             "Main Filter Cutoff Frequency",
-            1.0f, 
-            20000.0f,
+            mainFilterCutoffRange,
             18000.0f
             ),
         std::make_unique<AudioParameterFloat>(
@@ -105,6 +100,13 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             0.001f,
             3.0f,
             0.707106781f
+            ),
+        std::make_unique<AudioParameterFloat>(
+            "mainOutputGain",
+            "Main output gain",
+            -30.0f,
+            0.0f,
+            0.0f
             )
         })
 {
@@ -140,6 +142,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     pitchBendRangeParam = parameters.getRawParameterValue("pitchBendRange");
     mainFilterCutoffParam = parameters.getRawParameterValue("mainFilterCutoff");
     mainFilterQParam = parameters.getRawParameterValue("mainFilterQ");
+    mainOutputGainParam = parameters.getRawParameterValue("mainOutputGain");
 
     // Set Open Sans as default font
     LookAndFeel::getDefaultLookAndFeel().setDefaultSansSerifTypefaceName("Open Sans");
@@ -430,6 +433,12 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
                 writer[i] = mainLowpassFilters[channel].processSample(writer[i]);
             }
         }
+
+    	// Apply main output gain
+    	// Convert dB to linear
+        auto linear = pow(10.0f, *mainOutputGainParam / 20.0f);
+        buffer.applyGain(linear);
+    	
     }
     // ------------------------ SOUND end ---------------------------
 }
