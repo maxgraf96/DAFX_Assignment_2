@@ -350,10 +350,10 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         // Hard limit global position
         // (disallow user from choosing positions that would lead to part of the window being out of the sample range)
         if (position + halfWindow >= totalSampleLength) {
-            position = totalSampleLength - halfWindow;
+            position = totalSampleLength - halfWindow - 1;
         }
         if (position - halfWindow <= 0) {
-            position = 0 + halfWindow;
+            position = 0 + halfWindow + 1;
         }
 
         // Calculate window around this position
