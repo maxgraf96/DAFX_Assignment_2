@@ -3,36 +3,21 @@
 
     FilterGraph.cpp
     
-    Sean Enderby
+    Adapted from Sean Enderby's implementation: https://sourceforge.net/projects/jucefiltergraph/
 
   ==============================================================================
 */
 
 #include "FilterGraph.h"
 
-//==============================================================================
-//FilterGraph::FilterGraph (int numFiltersInit, TooltipWindow& tooltip)
-//    :tooltip(tooltip)
-//{    
-//    numHorizontalLines = 7;
-//    setSize (500, 300);
-//    lowFreq = 20;
-//    highFreq = 20000;
-//    fs = 48000;
-//    maxdB = 6;
-//    maxPhas = 1;
-//    numFilters = numFiltersInit;
-//    traceColour = Colour (0xaa00ff00);
-//    traceType = Magnitude;
-//}
-
 FilterGraph::FilterGraph(double sampleRate, Dafx_assignment_2AudioProcessor& p, TooltipWindow& tooltip)
     :tooltip(tooltip), vts(p.getVTS())
 {
-    filterVector.push_back(FilterInfo(sampleRate, p));
+    filterVector.push_back(FilterInfo(p));
     filterVector[0].setSampleRate(sampleRate);
 
     numHorizontalLines = 7;
+	// Hard limit frequency region for now
     lowFreq = 20;
     highFreq = 20000;
     fs = sampleRate;
@@ -42,17 +27,20 @@ FilterGraph::FilterGraph(double sampleRate, Dafx_assignment_2AudioProcessor& p, 
     traceColour = Colour(0xaa00ff00);
     traceType = Magnitude;
 
+	// Add parameter listen
     vts.addParameterListener("mainFilterCutoff", this);
     vts.addParameterListener("mainFilterQ", this);
 
-    fs = sampleRate;
     repaint();
 
+	// Add change listener in order to pickup UI/audioparameter changes
+	// and be able to repaint asynchronously
     addChangeListener(this);
 }
 
 FilterGraph::~FilterGraph()
 {
+	// Remove state management listeners
     vts.removeParameterListener("mainFilterCutoff", this);
     vts.removeParameterListener("mainFilterQ", this);
 }
@@ -60,8 +48,8 @@ FilterGraph::~FilterGraph()
 void FilterGraph::paint (Graphics& g)
 {
     // get size info =======================================================================================
-    float width = (float) getWidth();
-    float height = (float) getHeight();
+    const float width = float(getWidth());
+    const float height = float(getHeight());
     
     // paint the display background ============================================================================
     g.setGradientFill (ColourGradient (Colour (0xff232338), width / 2, height / 2, Colour (0xff21222a), 2.5f, height / 2, true));
@@ -72,27 +60,27 @@ void FilterGraph::paint (Graphics& g)
     
     if (traceType == Magnitude)
     {
-        float scaleFactor = (((height / 2) - (height - 5) / (numHorizontalLines + 1) - 2.5f) / maxdB);
+	    const float scaleFactor = (((height / 2) - (height - 5) / (numHorizontalLines + 1) - 2.5f) / maxdB);
     
-        float traceMagnitude = (float) (filterVector [0].getResponse (lowFreq).magnitudeValue);
+        float traceMagnitude = float(filterVector[0].getResponse(lowFreq).magnitudeValue);
         
         for (int i = 1; i < numFilters; i++)
         {
-            traceMagnitude *= (float) (filterVector [i].getResponse (lowFreq).magnitudeValue);
+            traceMagnitude *= float(filterVector[i].getResponse(lowFreq).magnitudeValue);
         }
         traceMagnitude = 20 * log10 (traceMagnitude);
     
         tracePath.startNewSubPath (2.5f, (height / 2) - (traceMagnitude * scaleFactor));
         
-        for (float xPos = 3.5; xPos < (width - 2.5); xPos += 1)
+        for (float xPos = 3.5; xPos < (width - 2.5); xPos += 1.0f)
         {
-            float freq = xToFreq (xPos);
+	        const float freq = xToFreq (xPos);
             
-            traceMagnitude = (float) (filterVector [0].getResponse (freq).magnitudeValue);
+            traceMagnitude = float(filterVector[0].getResponse(freq).magnitudeValue);
             
             for (int i = 1; i < numFilters; i++)
             {
-                traceMagnitude *= (float) (filterVector [i].getResponse (freq).magnitudeValue);
+                traceMagnitude *= float(filterVector[i].getResponse(freq).magnitudeValue);
             }
             traceMagnitude = 20 * log10 (traceMagnitude);
         
@@ -188,61 +176,15 @@ void FilterGraph::resized()
 {
 }
 
-void FilterGraph::setNumHorizontalLines (int newValue)
+float FilterGraph::xToFreq (float xPos) const
 {
-    numHorizontalLines = newValue;
-    repaint();
-}
-
-void FilterGraph::setFreqRange (float newLowFreq, float newHighFreq)
-{
-    lowFreq = fabs (newLowFreq + 0.1f);
-    highFreq = fabs (newHighFreq);
-    repaint();
-}
-
-void FilterGraph::setFilterGain (int filterNum, double gain)
-{
-    filterVector [filterNum].setGain (gain);
-    repaint();
-}
-
-void FilterGraph::setFilter (int filterNum, double sampleRate, double frequency, FilterType filterType)
-{    
-    filterVector [filterNum].setSampleRate (sampleRate);
-    //filterVector [filterNum].setFilter (frequency, filterType);
-    
-    fs = sampleRate;
-    repaint();
-}
-
-void FilterGraph::setEqBand (int filterNum, double sampleRate, double frequency, double Q, float gain, BandType eqType)
-{    
-    filterVector [filterNum].setSampleRate (sampleRate);
-    //filterVector [filterNum].setEqBand (frequency, Q, gain, eqType);
-    
-    fs = sampleRate;
-    repaint();
-}
-
-void FilterGraph::setCustom (int filterNum, double sampleRate, std::vector <double> numCoeffs, std::vector <double> denCoeffs)
-{
-    filterVector [filterNum].setSampleRate (sampleRate);
-    //filterVector [filterNum].setCustom (numCoeffs, denCoeffs);
-    
-    fs = sampleRate;
-    repaint();
-}
-
-float FilterGraph::xToFreq (float xPos)
-{
-    float width = (float) getWidth();
+	const auto width = float(getWidth());
     return lowFreq * pow ((highFreq / lowFreq), ((xPos - 2.5f) / (width - 5.0f)));
 }
 
-float FilterGraph::freqToX (float freq)
+float FilterGraph::freqToX (float freq) const
 {
-    float width = (float) getWidth();
+	const auto width = float(getWidth());
     return (width - 5) * (log (freq / lowFreq) / log (highFreq / lowFreq)) + 2.5f;
 }
 
@@ -287,8 +229,8 @@ void FilterGraph::mouseDrag(const MouseEvent& event)
     if (yPos > getHeight()) yPos = getHeight();
 
     // Convert from coordinates to values
-    float freq = xToFreq(xPos);
-    float q = map(yPos, 0.0f, static_cast<float>(getHeight()), 3.0f, 0.001f);
+    const float freq = xToFreq(xPos);
+    const float q = map(yPos, 0.0f, static_cast<float>(getHeight()), 3.0f, 0.001f);
 
     // Update filter coefficients
     updateFilters(freq, q);
@@ -302,7 +244,6 @@ void FilterGraph::mouseDown(const MouseEvent& event) {
 }
 
 void FilterGraph::mouseUp(const MouseEvent& event) {
-    // ...
     isDragging = false;
 }
 
@@ -321,15 +262,16 @@ void FilterGraph::renderTooltip(Point<int>& mousePosRel, Point<int>& mousePosAbs
     if (xPos > getWidth())
         xPos = getWidth();
 
-    float freq = xToFreq(xPos);
+	// Convert mouse position to frequency
+    const float freq = xToFreq(xPos);
 
     // Display tooltip
     if (traceType == Magnitude)
     {
-        float magnitude = (float)(filterVector[0].getResponse(freq).magnitudeValue);
-
+    	// Get magnitude for current mouse position
+        float magnitude = float(filterVector[0].getResponse(freq).magnitudeValue);
+    	// Convert to dB
         magnitude = 20 * log10(magnitude);
-
         // Display tooltip
         tooltip.displayTip(mousePosAbs, String(freq, 1) + "Hz, " + String(magnitude, 1) + "dB");
     }
@@ -338,11 +280,15 @@ void FilterGraph::renderTooltip(Point<int>& mousePosRel, Point<int>& mousePosAbs
 void FilterGraph::parameterChanged(const String& parameterID, float newValue)
 {
     if (parameterID == "mainFilterCutoff") {
+    	// Update cutoff
         filterVector[0].setCutoff(newValue);
+    	// Repaint asynchronously
         sendChangeMessage();
     }
     if (parameterID == "mainFilterQ") {
+    	// Update Q
         filterVector[0].setQ(newValue);
+    	// Repaint asynchronously
         sendChangeMessage();
     }
 }

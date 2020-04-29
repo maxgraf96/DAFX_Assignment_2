@@ -56,7 +56,9 @@ public:
     void changeProgramName (int index, const String& newName) override;
 
     //==============================================================================
+	// Load plugin state information from XML
     void getStateInformation (MemoryBlock& destData) override;
+	// Save plugin state information to XML
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     /*

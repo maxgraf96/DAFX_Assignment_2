@@ -33,9 +33,8 @@ typedef AudioProcessorValueTreeState::ButtonAttachment ButtonAttachment;
 //==============================================================================
 /**
                                                                     //[Comments]
-    An auto-generated component, created by the Projucer.
-
-    Describe your class and how it works here!
+    The main part of this class was created using the Projucer GUI editor.
+	It contains all UI elements and controls, and maps them to the processing.
                                                                     //[/Comments]
 */
 class JUCEEditor  : public Component,
@@ -62,7 +61,7 @@ public:
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
     Dafx_assignment_2AudioProcessor& processor;
-    // State management (persistence)
+    // State management
     AudioProcessorValueTreeState& valueTreeState;
 
     // Attachments for communication with state management
@@ -84,10 +83,13 @@ private:
     // Panel that holds audio sample (created in AudioProcessor)
     SamplePanel& samplePanel;
 
+	// Callback for changes made to the audio parameters
     void parameterChanged(const String& parameterID, float newValue) override;
 
+	// The filter visualisation component
     std::unique_ptr<FilterGraph> filterGraph;
 
+	// Necessary for enabling tooltips
     std::unique_ptr<TooltipWindow> tooltip;
     //[/UserVariables]
 

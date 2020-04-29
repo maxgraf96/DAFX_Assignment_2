@@ -329,9 +329,8 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
 
 
     //[Constructor] You can add your own custom stuff here..
-    //dynamicVelocityToggle->setColour(ToggleButton::ColourIds::tickColourId, Colours::black);
-    //adaptiveDecayToggle->setColour(ToggleButton::ColourIds::tickColourId, Colours::black);
 
+	// Add listeners for APVTS
     valueTreeState.addParameterListener("mode", this);
     valueTreeState.addParameterListener("dynamicVelocity", this);
     valueTreeState.addParameterListener("adaptiveDecay", this);
@@ -353,8 +352,8 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     mainFilterQAttachment.reset(new SliderAttachment(valueTreeState, "mainFilterQ", *mainFilterQSlider));
     mainOutputGainAttachment.reset(new SliderAttachment(valueTreeState, "mainOutputGain", *mainOutputGainSlider));
 
-    // Enable/disable sliders based on mode
-    bool isADSRMode = modeToggle->getToggleStateValue().getValue();
+    // Enable/disable UI elements based on mode
+    const bool isADSRMode = modeToggle->getToggleStateValue().getValue();
     delayFeedbackSlider->setEnabled(!isADSRMode);
     adaptiveDecayToggle->setEnabled(!isADSRMode);
 
@@ -364,7 +363,7 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     sustainSlider->setEnabled(isADSRMode);
     releaseSlider->setEnabled(isADSRMode);
 
-    // Add child components
+    // Add sample panel
     addAndMakeVisible(samplePanel);
 
     // Disable mouse clicks for adsr labels
@@ -373,12 +372,12 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     sustainLabel->setInterceptsMouseClicks(false, true);
     releaseLabel->setInterceptsMouseClicks(false, true);
 
-    // Set suffixes for adsr controls
+    // Set suffixes for ADSR controls
     attackSlider->setTextValueSuffix(" ms");
     decaySlider->setTextValueSuffix(" ms");
     releaseSlider->setTextValueSuffix(" ms");
 
-    // Setup filter graph for EQ
+    // Setup main filter visualiser
     tooltip.reset(new TooltipWindow(this, 100));
     filterGraph.reset(new FilterGraph(p.getSampleRate(), p, *tooltip));
     filterGraph->setBounds(705, 480, 282, 128);
@@ -386,16 +385,14 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     addAndMakeVisible(*filterGraph);
 
 	// Set main gain textbox
-    String val(mainOutputGainSlider->getValue());
-    val = val.substring(0, 5);
-    mainOutputGainValLabel->setText(val + "dB", dontSendNotification);
+    mainOutputGainValLabel->setText(String(mainOutputGainSlider->getValue(), 1) + "dB", dontSendNotification);
     //[/Constructor]
 }
 
 JUCEEditor::~JUCEEditor()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
-
+    // Remove APVTS listeners
     valueTreeState.removeParameterListener("mode", this);
     valueTreeState.removeParameterListener("dynamicVelocity", this);
     valueTreeState.removeParameterListener("adaptiveDecay", this);
@@ -634,9 +631,8 @@ void JUCEEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     else if (sliderThatWasMoved == mainOutputGainSlider.get())
     {
         //[UserSliderCode_mainOutputGainSlider] -- add your slider handling code here..
-        String val(sliderThatWasMoved->getValue());
-        val = val.substring(0, 5);
-        mainOutputGainValLabel->setText(val + "dB", dontSendNotification);
+    	// Get slider value, convert to string and set to 
+        mainOutputGainValLabel->setText(String(sliderThatWasMoved->getValue(), 1) + "dB", dontSendNotification);
         //[/UserSliderCode_mainOutputGainSlider]
     }
 

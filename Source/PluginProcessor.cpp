@@ -1,9 +1,7 @@
 /*
   ==============================================================================
 
-    This file was auto-generated!
-
-    It contains the basic framework code for a JUCE plugin processor.
+    Plugin processor for DAFX_Assignment_2.
 
   ==============================================================================
 */
@@ -22,6 +20,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
 #endif
     )
 #endif
+	// Setup all audio parameters
     , parameters(*this,
         nullptr, // No undo manager
         Identifier("DAFX2"),
@@ -29,9 +28,9 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
         std::make_unique<AudioParameterFloat>(
             "position",
             "Sample Position",
-            0.0,
-            1.0,
-            0.0
+            0.0f,
+            1.0f,
+            0.0f
             ),
         std::make_unique<AudioParameterInt>(
             "windowLength",
@@ -43,7 +42,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             "delayFeedback",
             "Delay Feedback",
             delayFeedbackRange,
-            0.98),
+            0.98f),
         std::make_unique<AudioParameterBool>(
             "mode",
             "Mode",
@@ -63,9 +62,9 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
         std::make_unique<AudioParameterFloat>(
             "sustain",
             "Sustain",
-            0.0,
-            1.0,
-            1.0
+            0.0f,
+            1.0f,
+            1.0f
         ),
         std::make_unique<AudioParameterFloat>(
             "release",
@@ -99,7 +98,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             "Main Filter Q",
             0.001f,
             3.0f,
-            0.707106781f
+            0.707106781f // sqrt(2) / 2
             ),
         std::make_unique<AudioParameterFloat>(
             "mainOutputGain",
@@ -129,6 +128,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     parameters.addParameterListener("mainFilterCutoff", this);
     parameters.addParameterListener("mainFilterQ", this);
 
+	// Create pointers to parameter values
     positionParam = parameters.getRawParameterValue("position");
     windowLengthParam = parameters.getRawParameterValue("windowLength");
     delayFeedbackParam = parameters.getRawParameterValue("delayFeedback");
@@ -150,102 +150,51 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
 
 Dafx_assignment_2AudioProcessor::~Dafx_assignment_2AudioProcessor()
 {
+	// Clear voices vector
     voices.clear();
-}
-
-const String Dafx_assignment_2AudioProcessor::getName() const
-{
-    return JucePlugin_Name;
-}
-
-bool Dafx_assignment_2AudioProcessor::acceptsMidi() const
-{
-   #if JucePlugin_WantsMidiInput
-    return true;
-   #else
-    return false;
-   #endif
-}
-
-bool Dafx_assignment_2AudioProcessor::producesMidi() const
-{
-   #if JucePlugin_ProducesMidiOutput
-    return true;
-   #else
-    return false;
-   #endif
-}
-
-bool Dafx_assignment_2AudioProcessor::isMidiEffect() const
-{
-   #if JucePlugin_IsMidiEffect
-    return true;
-   #else
-    return false;
-   #endif
-}
-
-double Dafx_assignment_2AudioProcessor::getTailLengthSeconds() const
-{
-    return 0.0;
-}
-
-int Dafx_assignment_2AudioProcessor::getNumPrograms()
-{
-    return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
-                // so this should be at least 1, even if you're not really implementing programs.
-}
-
-int Dafx_assignment_2AudioProcessor::getCurrentProgram()
-{
-    return 0;
-}
-
-void Dafx_assignment_2AudioProcessor::setCurrentProgram (int index)
-{
-}
-
-const String Dafx_assignment_2AudioProcessor::getProgramName (int index)
-{
-    return {};
-}
-
-void Dafx_assignment_2AudioProcessor::changeProgramName (int index, const String& newName)
-{
 }
 
 void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    // Set sample rate for sample panel
     samplePanel->setSampleRate(sampleRate);
 
-    // Prepare delay object
-    auto processContext = new juce::dsp::ProcessSpec();
+    // Prepare process context object used to initialise voices and delay objects
+    const auto processContext = new dsp::ProcessSpec();
     processContext->maximumBlockSize = samplesPerBlock;
-    processContext->numChannels = 2;
+    processContext->numChannels = 2; // Currently limited to stereo
     processContext->sampleRate = sampleRate;
 
     // Clear voices (for some reason prepareToPlay() can be called twice per startup)
     voices.clear();
 
     // Initialise NUM_VOICES (currently 16) voices
+	// Check if ADSR mode is enabled
     const bool isADSRMode = *adsrModeParam > 0.0 ? true : false;
+	// Check if adaptive decay is enabled
     const bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
+	// Get ADSR params from state
+	adsrParams.attack = *attackParam * 0.001;
+	adsrParams.decay = *decayParam * 0.001;
+	adsrParams.sustain = *sustainParam;
+	adsrParams.release = *releaseParam * 0.001;
+	
     for (int i = 0; i < NUM_VOICES; i++) {
+    	// Create new voice
         voices.push_back(std::make_unique<Voice>(*sampleBuffer, *processContext, int(2 * sampleRate),
                                                  noteNumberForVoice));
-        voices[i]->setDelayFeedback(*delayFeedbackParam);
+        // Configure voice
+    	voices[i]->setDelayFeedback(*delayFeedbackParam);
         voices[i]->setDelayWet(1.0);
         voices[i]->setADSRParams(adsrParams);
         voices[i]->setADSRMode(isADSRMode);
         voices[i]->setAdaptiveDecay(isAdaptiveDecay);
         voices[i]->setPitchBendRange(static_cast<int>(*pitchBendRangeParam));
 
-        // Initialise note number to voice map
+        // Initialise voice in note-number-to-voice map
         // -1 means "not playing", if a voice is playing this array will contain the MIDI
         // note number the voice is currently playing
-        noteNumberForVoice[i] = -1;
+        noteNumberForVoice[i] = NOT_PLAYING;
     }
 
     // Setup main lowpass filters
@@ -388,7 +337,8 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     midiMessages.swapWith(processedMidi);
     // ------------------------ MIDI end ------------------------ 
 
-    // ------------------------ SOUND --------------------------- 
+    // ------------------------ SOUND ---------------------------
+	// Only process if a sample is loaded
     if (sampleBuffer->getNumChannels() > 0) {
         // Get current window length from parameter
         windowLength = *windowLengthParam;
@@ -446,13 +396,14 @@ void Dafx_assignment_2AudioProcessor::setDelayFeedback(float delayFeedback) {
         voice->setDelayFeedback(delayFeedback);
 }
 
-std::array<juce::dsp::IIR::Filter<float>, 2>& Dafx_assignment_2AudioProcessor::getMainLowpassFilters()
+std::array<dsp::IIR::Filter<float>, 2>& Dafx_assignment_2AudioProcessor::getMainLowpassFilters()
 {
     return mainLowpassFilters;
 }
 
 void Dafx_assignment_2AudioProcessor::updateMainLowpassFilters(float cutoff, float q)
 {
+	// Apply cutoff and q to both filters (for left and right channel)
     mainLowpassFilters[0].coefficients = mainLowpassFilters[0].coefficients->makeLowPass(getSampleRate(), cutoff, q);
     mainLowpassFilters[1].coefficients = mainLowpassFilters[1].coefficients->makeLowPass(getSampleRate(), cutoff, q);
 }
@@ -465,12 +416,15 @@ AudioProcessorValueTreeState& Dafx_assignment_2AudioProcessor::getVTS()
 void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID, float newValue)
 {
     if (parameterID == "position") {
+    	// Update position in sample panel
         samplePanel->setSamplePosition(newValue);
     }
     if (parameterID == "windowLength") {
+    	// Update window length in sample panel
         samplePanel->setWindowLength(newValue);
     }
     if (parameterID == "delayFeedback") {
+    	// Update delay feedback value on all voices
         setDelayFeedback(newValue);
     }
     if (parameterID == "mode") {
@@ -486,6 +440,7 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
     if (parameterID == "attack") {
     	// Convert ms to seconds
         adsrParams.attack = newValue * 0.001;
+    	// Apply to all voices
         for (auto&& voice : voices) {
             voice->setADSRParams(adsrParams);
         }
@@ -493,12 +448,14 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
     if (parameterID == "decay") {
         // Convert ms to seconds
         adsrParams.decay = newValue * 0.001;
+    	// Apply to all voices
         for (auto&& voice : voices) {
             voice->setADSRParams(adsrParams);
         }
     }
     if (parameterID == "sustain") {
         adsrParams.sustain = newValue;
+    	// Apply to all voices
         for (auto&& voice : voices) {
             voice->setADSRParams(adsrParams);
         }
@@ -506,6 +463,7 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
     if (parameterID == "release") {
         // Convert ms to seconds
         adsrParams.release = newValue * 0.001;
+    	// Apply to all voices
         for (auto&& voice : voices) {
             voice->setADSRParams(adsrParams);
         }
@@ -515,24 +473,30 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
             *adaptiveDecayParam = 1.0f;
         else
             *adaptiveDecayParam = 0.0f;
+    	// Set breaking voice change flag (stops sound and changes configuration, then re-enables sound)
         shouldVoicesChange = true;
     }
     if (parameterID == "pitchBendRange") {
+    	// Apply pitch-bend to all voices
         for (auto&& voice : voices) {
             voice->setPitchBendRange(static_cast<int>(newValue));
         }
     }
     if (parameterID == "mainFilterCutoff") {
+    	// Apply to filters
         updateMainLowpassFilters(newValue, *mainFilterQParam);
     }
     if (parameterID == "mainFilterQ") {
+    	// Apply to filters
         updateMainLowpassFilters(*mainFilterCutoffParam, newValue);
     }
 }
 
 void Dafx_assignment_2AudioProcessor::changeVoices()
 {
+	// Check if ADSR mode is enabled
     const bool isADSRMode = *adsrModeParam > 0.0;
+	// Check if adaptive decay is enabled
     const bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
     // Set voices accordingly
     for (auto&& voice : voices) {
@@ -540,13 +504,13 @@ void Dafx_assignment_2AudioProcessor::changeVoices()
         voice->setAdaptiveDecay(isAdaptiveDecay);
     }
     if (isADSRMode) {
-        // Pad mode
+        // ADSR mode
         // Set delay feedback to 1.0 as sound over time will be controlled by ADSR envelope
-        parameters.getParameterAsValue("delayFeedback").setValue(1.0);
+        parameters.getParameterAsValue("delayFeedback").setValue(1.0f);
     }
     else {
-        // String mode
-        parameters.getParameterAsValue("delayFeedback").setValue(0.99);
+        // If disabling ADSR mode, the feedback is currently automatically reset to 0.99
+        parameters.getParameterAsValue("delayFeedback").setValue(0.99f);
     }
 
     // Re-enable sound
@@ -582,7 +546,9 @@ void Dafx_assignment_2AudioProcessor::setStateInformation (const void* data, int
             parameters.replaceState(ValueTree::fromXml(*xmlState));
 
     // Have to manually set here because state loading happens after all components are constructed
-    Value path = parameters.state.getPropertyAsValue("currentFilePath", nullptr);
+	// This makes sure that the right file path is injected into the sample panel
+	// if the plugin is loaded from a saved state.
+    const Value path = parameters.state.getPropertyAsValue("currentFilePath", nullptr);
     auto path_str = path.getValue().toString();
     if (path_str != "") {
         samplePanel->setCurrentFilePath(path_str);
@@ -596,6 +562,73 @@ void Dafx_assignment_2AudioProcessor::setStateInformation (const void* data, int
     adsrParams.decay = *decayParam * 0.001;
     adsrParams.sustain = *sustainParam;
     adsrParams.release = *releaseParam * 0.001;
+
+	// Apply ADSR params to all voices
+	for(auto&& voice : voices)
+	{
+		voice->setADSRParams(adsrParams);
+	}
+}
+
+const String Dafx_assignment_2AudioProcessor::getName() const
+{
+    return JucePlugin_Name;
+}
+
+bool Dafx_assignment_2AudioProcessor::acceptsMidi() const
+{
+   #if JucePlugin_WantsMidiInput
+    return true;
+   #else
+    return false;
+   #endif
+}
+
+bool Dafx_assignment_2AudioProcessor::producesMidi() const
+{
+   #if JucePlugin_ProducesMidiOutput
+    return true;
+   #else
+    return false;
+   #endif
+}
+
+bool Dafx_assignment_2AudioProcessor::isMidiEffect() const
+{
+   #if JucePlugin_IsMidiEffect
+    return true;
+   #else
+    return false;
+   #endif
+}
+
+double Dafx_assignment_2AudioProcessor::getTailLengthSeconds() const
+{
+    return 0.0;
+}
+
+int Dafx_assignment_2AudioProcessor::getNumPrograms()
+{
+    return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
+                // so this should be at least 1, even if you're not really implementing programs.
+}
+
+int Dafx_assignment_2AudioProcessor::getCurrentProgram()
+{
+    return 0;
+}
+
+void Dafx_assignment_2AudioProcessor::setCurrentProgram (int index)
+{
+}
+
+const String Dafx_assignment_2AudioProcessor::getProgramName (int index)
+{
+    return {};
+}
+
+void Dafx_assignment_2AudioProcessor::changeProgramName (int index, const String& newName)
+{
 }
 
 //==============================================================================

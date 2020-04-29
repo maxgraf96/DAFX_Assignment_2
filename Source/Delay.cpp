@@ -42,21 +42,28 @@ void Delay::prepare(const juce::dsp::ProcessSpec& spec)
 
 void Delay::process(AudioBuffer<float>& buffer) noexcept
 {
+	// Get audio data from buffer
 	const auto inputBuffer = buffer.getArrayOfWritePointers();
 	const auto numSamples = buffer.getNumSamples();
 	const auto numChannels = buffer.getNumChannels();
 
+	// Get current feedback
     auto currentFeedback = feedback;
+	// If adaptive decay is enabled, apply stretch factor to feedback
     if (isAdaptiveDecay) {
         currentFeedback = stretchFactor;
     }
 
     for (size_t ch = 0; ch < numChannels; ++ch)
     {
+    	// Get input and output for channel
 	    const auto input = inputBuffer[ch];
 	    const auto output = inputBuffer[ch];
+    	// Get delay line for channel
         auto& dline = delayLines[ch];
+    	// Get delay time
 	    const auto delayTime = delayTimes[ch];
+    	// Get filters for channel
         auto& filter = filters[ch];
         auto& tuningFilter = tuningFilters[ch];
 
@@ -76,6 +83,7 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
             const auto dlineInputSample = inputSample + currentFeedback * tuned;
             dline.push(dlineInputSample);
 
+        	// Write delayed sample to output
             output[i] = delayedSample;
         }
     }
@@ -94,6 +102,7 @@ void Delay::reset() noexcept
 }
 
 void Delay::windowChanged() {
+	// On window changes the delay line needs to be cleared
     for (auto& dline : delayLines)
         dline.clear();
 }

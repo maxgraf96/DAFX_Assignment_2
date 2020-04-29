@@ -15,6 +15,7 @@
 #include "JUCEEditor.h"
 
 /**
+ *This class is currently mainly a wrapper for the JUCEEditor.
 */
 class Dafx_assignment_2AudioProcessorEditor  : public AudioProcessorEditor
 {
@@ -26,12 +27,13 @@ public:
     void resized() override;
 
 private:
+	// Reference to the main audio processor
     Dafx_assignment_2AudioProcessor& processor;
     
-    // State management (persistence)
+    // State management
     AudioProcessorValueTreeState& valueTreeState;
 
-    // Main editor built with JUCE GUI
+    // Main editor built with Projucer GUI editor
     std::unique_ptr<JUCEEditor> editor;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessorEditor)

@@ -22,10 +22,10 @@ FilterResponse::~FilterResponse()
 }
 
 //===============================================================================
-FilterInfo::FilterInfo(double sampleRate, Dafx_assignment_2AudioProcessor& p)
+FilterInfo::FilterInfo(Dafx_assignment_2AudioProcessor& p)
     :processor(p)
 {
-    // Get one of the filters' coeffitiens (currently they are the same for both filters)
+    // Get the filters' coeffitiens (currently they are the same for both filters)
     this->coeffs[0] = p.getMainLowpassFilters()[0].coefficients;
     this->coeffs[1] = p.getMainLowpassFilters()[1].coefficients;
 
@@ -33,7 +33,7 @@ FilterInfo::FilterInfo(double sampleRate, Dafx_assignment_2AudioProcessor& p)
     this->cutoff = *p.getVTS().getRawParameterValue("mainFilterCutoff");
     this->q = *p.getVTS().getRawParameterValue("mainFilterQ");
 
-    fs = sampleRate;
+    fs = p.getSampleRate();
     gainValue = 1;
 }
 
@@ -53,26 +53,19 @@ void FilterInfo::setGain (double gain)
 
 void FilterInfo::updateFilter(float cutoff, float q)
 {
+	// Update filter coefficients
     for (auto& coefs : coeffs)
         coefs = coefs->makeLowPass(fs, cutoff, q);
 }
 
 FilterResponse FilterInfo::getResponse (double inputFrequency) const
 {
-    double mag = coeffs[0]->getMagnitudeForFrequency(inputFrequency, fs);
-    double phase = coeffs[0]->getPhaseForFrequency(inputFrequency, fs);
+	// This 
+	const double mag = coeffs[0]->getMagnitudeForFrequency(inputFrequency, fs);
+	const double phase = coeffs[0]->getPhaseForFrequency(inputFrequency, fs);
 
+	// Wrap in FilterResponse
     return FilterResponse(mag, phase);
-}
-
-double FilterInfo::getCutoff()
-{
-    return cutoff;
-}
-
-double FilterInfo::getQ()
-{
-    return q;
 }
 
 void FilterInfo::setCutoff(double cutoff)
