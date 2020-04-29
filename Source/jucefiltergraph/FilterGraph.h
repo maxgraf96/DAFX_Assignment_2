@@ -16,7 +16,7 @@
 //==============================================================================
 class FilterGraph    : public Component,
                        public SettableTooltipClient,
-    private AudioProcessorValueTreeState::Listener
+    private AudioProcessorValueTreeState::Listener, ChangeBroadcaster, ChangeListener
 {
 public:
     //FilterGraph (int numFilters, TooltipWindow& tooltip);
@@ -75,6 +75,7 @@ private:
     Path gridPath, tracePath;
 
     void parameterChanged(const String& parameterID, float newValue) override;
-    
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilterGraph)
+    void changeListenerCallback(ChangeBroadcaster* source) override;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FilterGraph)
 };

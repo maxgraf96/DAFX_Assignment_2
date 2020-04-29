@@ -52,13 +52,13 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             "attack",
             "Attack",
             adsrRange,
-            0
+            0.0f
         ),
         std::make_unique<AudioParameterFloat>(
             "decay",
             "Decay",
             adsrRange,
-            0
+            0.0f
         ),
         std::make_unique<AudioParameterFloat>(
             "sustain",
@@ -71,7 +71,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             "release",
             "Release",
             adsrRange,
-            0
+            0.0f
         ),
         std::make_unique<AudioParameterBool>(
             "dynamicVelocity",
@@ -132,7 +132,7 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
     positionParam = parameters.getRawParameterValue("position");
     windowLengthParam = parameters.getRawParameterValue("windowLength");
     delayFeedbackParam = parameters.getRawParameterValue("delayFeedback");
-    modeParam = parameters.getRawParameterValue("mode");
+    adsrModeParam = parameters.getRawParameterValue("mode");
     attackParam = parameters.getRawParameterValue("attack");
     decayParam = parameters.getRawParameterValue("decay");
     sustainParam = parameters.getRawParameterValue("sustain");
@@ -230,10 +230,11 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
     voices.clear();
 
     // Initialise NUM_VOICES (currently 16) voices
-    bool isADSRMode = *modeParam > 0.0 ? true : false;
-    bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
+    const bool isADSRMode = *adsrModeParam > 0.0 ? true : false;
+    const bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
     for (int i = 0; i < NUM_VOICES; i++) {
-        voices.push_back(std::unique_ptr<Voice>(new Voice(sampleBuffer, *processContext, int(2 * sampleRate), noteNumberForVoice)));
+        voices.push_back(std::make_unique<Voice>(*sampleBuffer, *processContext, int(2 * sampleRate),
+                                                 noteNumberForVoice));
         voices[i]->setDelayFeedback(*delayFeedbackParam);
         voices[i]->setDelayWet(1.0);
         voices[i]->setADSRParams(adsrParams);
@@ -289,15 +290,16 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
 {
     // Some voice parameters (e.g. adsr mode) can't be changed during playback at the moment
     // This flag should be set if the voices need to be changed
-    // Currently these changes include adsr mode switching
+    // These changes include adsr mode switching and adaptive decay toggling
     if (shouldVoicesChange) {
         changeVoices();
         return;
     }
+	
     ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
-    auto numSamples = buffer.getNumSamples();
+
+	// Get number of samples in buffer
+    const auto numSamples = buffer.getNumSamples();
     
     // ------------------------ MIDI ------------------------ 
     // Swap buffer for MIDI messages
@@ -311,7 +313,7 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     for (MidiBuffer::Iterator i(midiMessages); i.getNextEvent(m, time);)
     {
         // Get the MIDI note number
-        auto noteNumber = m.getNoteNumber();
+        const auto noteNumber = m.getNoteNumber();
         // Note on handling
         if (m.isNoteOn())
         {
@@ -344,7 +346,7 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
             // If it's a completely new note find the next free voice and trigger
             else {
                 for (int i = 0; i < NUM_VOICES; i++) {
-                    if (noteNumberForVoice[i] == Voice::NOT_PLAYING) {
+                    if (noteNumberForVoice[i] == NOT_PLAYING) {
                         voices[i]->noteOn(noteNumber, velocity, samplePanelStartIdx, windowLength);
                         selectedVoiceIdx = i;
                         break;
@@ -376,13 +378,13 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
 
         // Glissandi/pitch-bend controlled by MIDI pitch wheel
         if (m.isPitchWheel()) {
-            float pitchWheelValue = static_cast<float>(m.getPitchWheelValue());
             // Map to [-1.0, 1.0] for tuning in voices
-            mappedPitchWheelValue = map(pitchWheelValue, 0.0f, MIDI_PITCH_WHEEL_MAX_VAL, -1.0f, 1.0f);
+            mappedPitchWheelValue = map(static_cast<float>(m.getPitchWheelValue()), 0.0f, MIDI_PITCH_WHEEL_MAX_VAL, -1.0f, 1.0f);
         }
 
         processedMidi.addEvent(m, time);
     }
+	// Swap MIDI buffers
     midiMessages.swapWith(processedMidi);
     // ------------------------ MIDI end ------------------------ 
 
@@ -390,11 +392,11 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
     if (sampleBuffer->getNumChannels() > 0) {
         // Get current window length from parameter
         windowLength = *windowLengthParam;
-        int totalSampleLength = sampleBuffer->getNumSamples();
-        int halfWindow = int(windowLength / 2);
+        const int totalSampleLength = sampleBuffer->getNumSamples();
+        const int halfWindow = int(windowLength / 2);
         // Get currently selected position in sample (global, coming from SamplePanel)
         // This is the position the user selected
-        int position = round(samplePanel->getSamplePosition() * getSampleRate());
+        int position = roundToInt(samplePanel->getSamplePosition() * getSampleRate());
         // Hard limit global position
         // (disallow user from choosing positions that would lead to part of the window being out of the sample range)
         if (position + halfWindow >= totalSampleLength) {
@@ -407,18 +409,17 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         // Calculate window around this position
         samplePanelStartIdx = position - halfWindow;
         samplePanelStartIdx = samplePanelStartIdx > 0 ? samplePanelStartIdx : 0;
-        int end = position + halfWindow;
-        end = end > totalSampleLength ? totalSampleLength : end;
 
         // Check if playback window has changed (either by being moved or changed in size)
         // If so, update the voices accordingly
-        bool windowChanged = samplePanelStartIdx != prevSamplePanelStartIdx || windowLength != prevWindowLength;
+        const bool windowChanged = samplePanelStartIdx != prevSamplePanelStartIdx || windowLength != prevWindowLength;
 
-        // This will hit once a sample was captured and a key is pressed
+        // Clear the main output buffer
         buffer.clear();
 
+    	// For each voice currently playing load sound into the main buffer
         for (int i = 0; i < NUM_VOICES; i++) {
-            if (noteNumberForVoice[i] > Voice::NOT_PLAYING)
+            if (noteNumberForVoice[i] > NOT_PLAYING)
                 voices[i]->play(buffer, samplePanelStartIdx, windowLength, windowChanged, mappedPitchWheelValue);
         }
 
@@ -427,18 +428,15 @@ void Dafx_assignment_2AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
         prevWindowLength = windowLength;
 
         // Feed through main lowpass filter
-        for (int channel = 0; channel < buffer.getNumChannels(); channel++) {
-            auto writer = buffer.getWritePointer(channel);
+        for (auto channel = 0; channel < buffer.getNumChannels(); channel++) {
+            const auto writer = buffer.getWritePointer(channel);
             for (int i = 0; i < numSamples; i++) {
                 writer[i] = mainLowpassFilters[channel].processSample(writer[i]);
             }
         }
 
-    	// Apply main output gain
-    	// Convert dB to linear
-        auto linear = pow(10.0f, *mainOutputGainParam / 20.0f);
-        buffer.applyGain(linear);
-    	
+    	// Convert dB to linear and apply to output
+        buffer.applyGain(pow(10.0f, *mainOutputGainParam / 20.0f));
     }
     // ------------------------ SOUND end ---------------------------
 }
@@ -479,19 +477,21 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
         // This check is necessary to handle mode change via automation
         // Otherwise "non-normalisable" values are set (as it's a bool param) and JUCE complains
         if (newValue > 0.0f)
-            *modeParam = 1.0f;
+            *adsrModeParam = 1.0f;
         else
-            *modeParam = 0.0f;
+            *adsrModeParam = 0.0f;
         // Stop playback
         shouldVoicesChange = true;
     }
     if (parameterID == "attack") {
+    	// Convert ms to seconds
         adsrParams.attack = newValue * 0.001;
         for (auto&& voice : voices) {
             voice->setADSRParams(adsrParams);
         }
     }
     if (parameterID == "decay") {
+        // Convert ms to seconds
         adsrParams.decay = newValue * 0.001;
         for (auto&& voice : voices) {
             voice->setADSRParams(adsrParams);
@@ -504,6 +504,7 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
         }
     }
     if (parameterID == "release") {
+        // Convert ms to seconds
         adsrParams.release = newValue * 0.001;
         for (auto&& voice : voices) {
             voice->setADSRParams(adsrParams);
@@ -531,8 +532,8 @@ void Dafx_assignment_2AudioProcessor::parameterChanged(const String& parameterID
 
 void Dafx_assignment_2AudioProcessor::changeVoices()
 {
-    bool isADSRMode = *modeParam > 0.0;
-    bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
+    const bool isADSRMode = *adsrModeParam > 0.0;
+    const bool isAdaptiveDecay = !isADSRMode && *adaptiveDecayParam > 0.0f;
     // Set voices accordingly
     for (auto&& voice : voices) {
         voice->setADSRMode(isADSRMode);
@@ -567,7 +568,7 @@ AudioProcessorEditor* Dafx_assignment_2AudioProcessor::createEditor()
 void Dafx_assignment_2AudioProcessor::getStateInformation (MemoryBlock& destData)
 {
     // Store state when closing plugin
-    auto state = parameters.copyState();
+    const auto state = parameters.copyState();
     std::unique_ptr<XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -587,7 +588,7 @@ void Dafx_assignment_2AudioProcessor::setStateInformation (const void* data, int
         samplePanel->setCurrentFilePath(path_str);
 
         // Update position as well
-        samplePanel->setSamplePositionAbsolute(*positionParam);
+        samplePanel->setSamplePositionFromState(*positionParam);
     } 
 
     // Convert from ms to seconds

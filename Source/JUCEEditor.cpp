@@ -389,7 +389,6 @@ JUCEEditor::JUCEEditor (Dafx_assignment_2AudioProcessor& p, AudioProcessorValueT
     String val(mainOutputGainSlider->getValue());
     val = val.substring(0, 5);
     mainOutputGainValLabel->setText(val + "dB", dontSendNotification);
-
     //[/Constructor]
 }
 
@@ -543,7 +542,7 @@ void JUCEEditor::paint (Graphics& g)
     shadow.drawForRectangle(g, area);
 
     // Shadow for main components
-    shadow = DropShadow(Colours::black, 3, Point<int>(0, -3));
+    shadow = DropShadow(Colours::black, 4, Point<int>(0, -2));
     x = 0, y = getHeight() - 50, width = getWidth(), height = 1;
     area = Rectangle<int>(x, y, width, height);
     shadow.drawForRectangle(g, area);
@@ -571,8 +570,8 @@ void JUCEEditor::resized()
     sustainLabel->setBounds ((365 + 29) + 100 / 2 + -10, (278 + 148) + 100 / 2 + -22, 20, 24);
     releaseLabel->setBounds (((365 + 29) + 100 - -24) + 100 / 2 + -10, (278 + 148) + 100 / 2 + -22, 20, 24);
     mainOutputGainSlider->setBounds (getWidth() - 119, getHeight() - 85, 100, 85);
-    mainOutputGainLabel->setBounds ((getWidth() - 119) + -189, (getHeight() - 85) + 46, 150, 24);
-    mainOutputGainValLabel->setBounds ((getWidth() - 119) + -47, (getHeight() - 85) + 46, 70, 24);
+    mainOutputGainLabel->setBounds ((getWidth() - 119) + -189, (getHeight() - 85) + 47, 150, 24);
+    mainOutputGainValLabel->setBounds ((getWidth() - 119) + -47, (getHeight() - 85) + 47, 70, 24);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -635,6 +634,9 @@ void JUCEEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     else if (sliderThatWasMoved == mainOutputGainSlider.get())
     {
         //[UserSliderCode_mainOutputGainSlider] -- add your slider handling code here..
+        String val(sliderThatWasMoved->getValue());
+        val = val.substring(0, 5);
+        mainOutputGainValLabel->setText(val + "dB", dontSendNotification);
         //[/UserSliderCode_mainOutputGainSlider]
     }
 
@@ -705,12 +707,6 @@ void JUCEEditor::parameterChanged(const String& parameterID, float newValue)
             repaint();
         }
     }
-	if(parameterID == "mainOutputGain")
-	{
-        String val(newValue);
-        val = val.substring(0, 5);
-        mainOutputGainValLabel->setText(val + "dB", dontSendNotification);
-	}
 }
 //[/MiscUserCode]
 

@@ -20,30 +20,31 @@ Delay::Delay()
 void Delay::prepare(const juce::dsp::ProcessSpec& spec)
 {
     jassert(spec.numChannels <= maxNumChannels);
-    sampleRate = (float)spec.sampleRate;
+    sampleRate = float(spec.sampleRate);
     updateDelayLineSize();
     updateDelayTime();
 
-    // Use first order LP for now
-    filterCoefs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, float(sampleRate/2));
-    //tuningFilterCoefs = new juce::dsp::IIR::Coefficients<float>(1.0f, C, C, 1.0);
-    //tuningFilterCoefs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderAllPass(sampleRate, int(sampleRate / 2));
+    // Use first-order attenuation of the signal in the delay loop
+    filterCoefs = dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, float(sampleRate/2));
 
+	// Prepare the filters using the host's configuration
+	// Lowpass for attenuation
     for (auto& f : filters)
     {
         f.prepare(spec);
         f.coefficients = filterCoefs;
     }
 
+	// Allpass for fine-tuning
     for (auto& f : tuningFilters)
         f.prepare(spec);
 }
 
 void Delay::process(AudioBuffer<float>& buffer) noexcept
 {
-    auto inputBuffer = buffer.getArrayOfWritePointers();
-    auto numSamples = buffer.getNumSamples();
-    auto numChannels = buffer.getNumChannels();
+	const auto inputBuffer = buffer.getArrayOfWritePointers();
+	const auto numSamples = buffer.getNumSamples();
+	const auto numChannels = buffer.getNumChannels();
 
     auto currentFeedback = feedback;
     if (isAdaptiveDecay) {
@@ -52,27 +53,27 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
 
     for (size_t ch = 0; ch < numChannels; ++ch)
     {
-        auto input = inputBuffer[ch];
-        auto output = inputBuffer[ch];
+	    const auto input = inputBuffer[ch];
+	    const auto output = inputBuffer[ch];
         auto& dline = delayLines[ch];
-        auto delayTime = delayTimes[ch];
+	    const auto delayTime = delayTimes[ch];
         auto& filter = filters[ch];
         auto& tuningFilter = tuningFilters[ch];
 
         for (size_t i = 0; i < numSamples; ++i)
         {
             // Input from delay line
-            auto delayedSample = filter.processSample(dline.get(delayTime));
+            const auto delayedSample = filter.processSample(dline.get(delayTime));
 
             // Fine-tune the string using an allpass filter as described in the KS-extension paper
-            float tuned = tuningFilter.processSample(delayedSample);
+            const float tuned = tuningFilter.processSample(delayedSample);
             //float tuned = delayedSample;
 
             // Get input sample from main buffer
-            auto inputSample = input[i];
+            const auto inputSample = input[i];
 
             // Combine input and delayed samples
-            auto dlineInputSample = inputSample + currentFeedback * tuned;
+            const auto dlineInputSample = inputSample + currentFeedback * tuned;
             dline.push(dlineInputSample);
 
             output[i] = delayedSample;
@@ -137,60 +138,55 @@ void Delay::setDelayTime(size_t channel, int newValueSamples)
 void Delay::prepareFineTune(double fundamentalFrequency, int pitchBendRange, float pitchWheelValue)
 {
     // Adjust f0 based on current pitch-wheel value
-    auto semitoneRangeInCent = pitchBendRange * 100.0f;
-    auto currentRange = pitchWheelValue * semitoneRangeInCent;
+    const auto semitoneRangeInCent = float(pitchBendRange) * 100.0f;
+    const auto currentRange = pitchWheelValue * semitoneRangeInCent;
     
     // Get the current detune in cents for the incoming pitch bend value
     // "root" here comes from the Constants.h file and is the value any frequency must be multiplied
     // with to increase it by one cent (2^(1/1200)) in an equally tempered tuning
-    double centMultiplicator = pow(root, currentRange);
+    const double centMultiplicator = pow(root, currentRange);
 
+	// Adapt f0 if pitchwheel is active
     fundamentalFrequency *= centMultiplicator;
 
-    auto pitchWheelMapped = pitchWheelValue * 10.0f;
+	// Fine-tuning as described in the Karplus-Strong extension paper
+	// This uses an allpass filter with variable phase delay to account for
+	// the limit imposed by using an integer amount of delay elements
 
-    double phaseResponseLowpass = filterCoefs->getPhaseForFrequency(fundamentalFrequency, sampleRate);
-    float epsilon = 0.01;
-    double samplePeriod = 1.0 / sampleRate;
+	// Get phase response of the lowpass filter 
+    const double phaseResponseLowpass = filterCoefs->getPhaseForFrequency(fundamentalFrequency, sampleRate);
+    const double samplePeriod = 1.0 / sampleRate;
 
-    double phaseDelayLowpass = -phaseResponseLowpass / (2.0 * MathConstants<double>::pi * fundamentalFrequency * samplePeriod);
+	// Calculate phase delay from phase response
+    const double phaseDelayLowpass = -phaseResponseLowpass / (2.0 * MathConstants<double>::pi * fundamentalFrequency * samplePeriod);
 
     // Calculate P1
-    auto P1 = sampleRate / fundamentalFrequency;
+    const auto P1 = sampleRate / fundamentalFrequency;
 
-    int N = int(floor(P1 - phaseDelayLowpass - epsilon));
+	// Calculate new delay line length N and set
+    const int N = int(floor(P1 - phaseDelayLowpass - epsilon));
     setDelayTime(0, N);
     setDelayTime(1, N);
 
-    double phaseDelayAllpass = P1 - N - phaseDelayLowpass;
+	// Calculate the phase delay required by the allpass filter in order to tune to correct pitch
+    const double phaseDelayAllpass = P1 - N - phaseDelayLowpass;
 
     // Calculate omega
-    double omega = MathConstants<double>::twoPi * fundamentalFrequency;
+    const double omega = MathConstants<double>::twoPi * fundamentalFrequency;
 
-    // Calculate C
-    double left = omega * samplePeriod;
-    double right = omega * samplePeriod * phaseDelayAllpass;
-    double dC = sin((left - right) / 2.0)
-        / sin((left + right) / 2.0);
+    // Calculate the tuning coefficient C
+    const double left = omega * samplePeriod;
+    const double right = omega * samplePeriod * phaseDelayAllpass;
 
-    C = dC;
-
-    //auto test = -(1.0 / (left)) * atan(-sin(left) / (dC + cos(left)));
+    C = sin((left - right) / 2.0) / sin((left + right) / 2.0);
 
     // Set tuning-allpass filter coefficients based on incoming fundamental frequency
-    tuningFilterCoefs = new juce::dsp::IIR::Coefficients<float>(1.0f, C, 1.0f, C);
+    tuningFilterCoefs = new dsp::IIR::Coefficients<float>(1.0f, C, 1.0f, C);
     for (auto& f : tuningFilters)
         f.coefficients = tuningFilterCoefs;
 
     // If adaptive decay is enabled set stretch factor accordingly
-    if (feedback == 1.0f)
-        stretchFactor = 1.0f - log(1000) * (1.0f / fundamentalFrequency);
-    else {
-        auto factor = log(1000) * (1.0f / fundamentalFrequency);
-        stretchFactor = feedback - log(1000) * (1.0f / fundamentalFrequency);
-    }
-
-    auto a = 2;
+    stretchFactor = feedback - log(1000) * (1.0f / fundamentalFrequency);
 }
 
 void Delay::setSampleRate(double sr)
@@ -204,7 +200,7 @@ void Delay::setAdaptiveDecay(bool isAdaptiveDecay)
 }
 
 void Delay::updateDelayLineSize() {
-    auto delayLineSizeSamples = (size_t)std::ceil(maxDelayTime * sampleRate);
+	const auto delayLineSizeSamples = size_t(std::ceil(maxDelayTime * sampleRate));
 
     for (auto& dline : delayLines)
         dline.resize(delayLineSizeSamples);
@@ -212,19 +208,7 @@ void Delay::updateDelayLineSize() {
 
 void Delay::updateDelayTime() noexcept {
     for (size_t ch = 0; ch < maxNumChannels; ++ch) {
-        //delayTimesSample[ch] = (size_t)juce::roundToInt(delayTimes[ch] * sampleRate);
         delayTimesSample[ch] = delayTimes[ch];
     }
-}
-
-/*
-    Allpass filter that takes the current input (x_n), 
-    the previous input (x_n-1) and the previous output (y_n-1) to produce correct tuning
-*/
-float Delay::fineTune(float input, float prevInput, float prevOutput)
-{
-    // Sample output
-    float out = C * input + prevInput - (C * prevOutput);
-    return out;
 }
 

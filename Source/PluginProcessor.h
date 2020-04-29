@@ -59,58 +59,83 @@ public:
     void getStateInformation (MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // Delay methods
+    /*
+     *Setter for delay feedback
+     *This applies the incoming value to all voices
+	*/
     void setDelayFeedback(float delayFeedback);
 
     // Main lowpass filter getter
-    std::array<juce::dsp::IIR::Filter<float>, 2>& getMainLowpassFilters();
+    std::array<dsp::IIR::Filter<float>, 2>& getMainLowpassFilters();
 
+	// Update the cutoff frequency / q value for the main lowpass filters
     void updateMainLowpassFilters(float cutoff, float q);
+
     AudioProcessorValueTreeState& getVTS();
 
 private:
     // State management
     AudioProcessorValueTreeState parameters;
+	// Called if one of the parameters is changed, either through UI interaction or
+	// manipulation from the host (such as automations)
     void parameterChanged(const String& parameterID, float newValue) override;
 
-    // Audio buffer holding sample
+    // Audio buffer holding the full loaded sample
     AudioBuffer<float> *sampleBuffer = nullptr;
 
-    // Window size (length)
+    // Length of the window used to extract the excitator burst from the full sample
     int windowLength = WINDOW_LENGTH_MIN;
+	// Placeholder to check if the window length changed
     int prevWindowLength = -1;
 
     // SamplePanel component
     std::unique_ptr<SamplePanel> samplePanel;
+	// The lower end of the window used to extract the excitator burst
     int samplePanelStartIdx = 0;
+    // Placeholder to check if the window position changed
     int prevSamplePanelStartIdx = 0;
 
-    // Control parameters
-    // Controls the sample position in seconds
+    // Control parameters tied to the audio parameters
+	// Due to the JUCE handling these are all converted to float values
+	// Current position in sample (centre of window)
     float* positionParam = nullptr;
+	// Current window length
     float* windowLengthParam = nullptr;
+	// Current delay feedback value [0...1]
     float* delayFeedbackParam = nullptr;
-    float* modeParam = nullptr;
+	// Whether ADSR mode is enabled/disabled
+    float* adsrModeParam = nullptr;
+	// Attack time (ms)
     float* attackParam = nullptr;
+	// Decay time (ms)
     float* decayParam = nullptr;
+	// Sustain level [0...1]
     float* sustainParam = nullptr;
+	// Release time (ms)
     float* releaseParam = nullptr;
-    // Whether to use the same velocity for every stroke
+    // Whether to use a fixed velocity (127 =^= gain of 1.0) for every incoming note
+	// Or use the velocity coming from the MIDI data
     float* dynamicVelocityParam = nullptr;
+	// Whether to equalise decay times of notes across different pitches
+	// Normally, due to the synthesis paradigm, higher pitched notes decay faster
+	// If this is enabled, this difference in decays is corrected by adapting the current delay feedback of the voice
+	// to the fundamental frequency of the incoming note
     float* adaptiveDecayParam = nullptr;
     // Pitch bend range
     float* pitchBendRangeParam = nullptr;
-    // Main lowpass filter cutoff frequency and Q value
+    // Main lowpass filter cutoff frequency and Q values
     float* mainFilterCutoffParam = nullptr;
     float* mainFilterQParam = nullptr;
+	// Main output gain
     float* mainOutputGainParam = nullptr;
 
     // ADSR parameters
     ADSR::Parameters adsrParams;
 
     // Polyphony
+	// Vector that will be filled with NUM_VOICES voices (defined in Constants.h)
     std::vector<std::unique_ptr<Voice>> voices = {};
-    // Map from note voices to notenumber
+    // Map from voice index to MIDI note number, used to keep track of which voices are taken and which voices are free
     // So: { -1 -1 74 -1 -1 ... } means that the third voice is currently playing MIDI note 74
     std::array<int, NUM_VOICES> noteNumberForVoice = {};
 
@@ -124,11 +149,9 @@ private:
 
     // Mapped pitch wheel control [0...1]
     float mappedPitchWheelValue = 0.0f;
-    // How far to shift up/down
-    int pitchBendRange = 12;
 
-    // Main lowpass filter 
-    std::array<juce::dsp::IIR::Filter<float>, 2> mainLowpassFilters;
+    // Main lowpass filters (one per channel, stereo is assumed at the moment) 
+    std::array<dsp::IIR::Filter<float>, 2> mainLowpassFilters;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_2AudioProcessor)
 };

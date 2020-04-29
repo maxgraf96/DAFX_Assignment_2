@@ -16,6 +16,7 @@ Identifier SamplePanel::currentFilePathID("currentFilePath");
 SamplePanel::SamplePanel(AudioProcessorValueTreeState& vts)
     : thumbnailCache(5), thumbnail(1024, formatManager, thumbnailCache), valueTreeState(vts)
 {
+	// Get window length from state management
     this->windowLength = static_cast<int>(*vts.getRawParameterValue("windowLength"));
 
     // Initialise sample buffer
@@ -32,14 +33,15 @@ SamplePanel::SamplePanel(AudioProcessorValueTreeState& vts)
     addAndMakeVisible(filenameComponent.get());
     filenameComponent->addListener(this);
 
-    // Add waveform display
+    // Prepare waveform display
     formatManager.registerBasicFormats();
 
-    // State management
+    // Hook up currentFilePath to state management
     currentFilePath.addListener(this);
 
     // Preload sample for convenience
-    auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\sweetrelease.wav");
+	// Note: If this path does not exist the plugin simply defaults to no sample
+    const auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\sweetrelease.wav");
     filenameComponent->setCurrentFile(*currentFile, false, dontSendNotification);
     loadFile(*currentFile);
 
@@ -57,14 +59,15 @@ SamplePanel::~SamplePanel()
 
 void SamplePanel::paint (Graphics& g)
 {
-    g.fillAll (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));   // clear the background
+    g.fillAll (backgroundColour);
 
-    g.setColour (Colours::grey);
-    g.drawRect (getLocalBounds(), 1);   // draw an outline around the component
+    //g.setColour (Colours::grey);
+    //g.drawRect (getLocalBounds(), 1);
 
     g.setColour (Colours::white);
-    g.setFont (14.0f);
+    g.setFont(24.0f);
 
+	// Text to display on sample panel depends on whether a file is loaded
     String fileLoadedText = "";
     if (fileLoadedState == notLoaded) {
         fileLoadedText = "No sample loaded";
@@ -82,7 +85,7 @@ void SamplePanel::paint (Graphics& g)
                 Justification::centred, true);   
 
     // Draw waveform if available
-    Rectangle<int> thumbnailBounds(0, 12, 1024, 200);
+    const Rectangle<int> thumbnailBounds(0, 12, getWidth(), WAVEFORM_HEIGHT);
     if (thumbnail.getNumChannels() == 0)
         paintIfNoFileLoaded(g, thumbnailBounds);
     else
@@ -91,16 +94,17 @@ void SamplePanel::paint (Graphics& g)
 
 void SamplePanel::paintIfNoFileLoaded(Graphics& g, const Rectangle<int>& thumbnailBounds)
 {
-    g.setColour(Colours::darkgrey);
+    g.setColour(backgroundColour);
     g.fillRect(thumbnailBounds);
     g.setColour(Colours::white);
+	g.setFont(24.0f);
     g.drawFittedText("Click to load sample", thumbnailBounds, Justification::centred, 1.0f);
 }
 
 void SamplePanel::paintIfFileLoaded(Graphics& g, const Rectangle<int>& thumbnailBounds)
 {
     // Draw background
-    g.setColour(Colour(0xff220901));
+    g.setColour(backgroundColour);
     g.fillRect(thumbnailBounds);
 
     // Draw waveform
@@ -112,16 +116,16 @@ void SamplePanel::paintIfFileLoaded(Graphics& g, const Rectangle<int>& thumbnail
         audioLength,                // end time
         0.9f);                      // vertical zoom
     // Draw time marker
-    g.setColour(Colour(0xff5EB0A7));
+    g.setColour(timeMarkerColour);
 
-    auto audioPosition(transportSource.getCurrentPosition());
-    auto drawPosition((audioPosition / audioLength) * thumbnailBounds.getWidth()
+    const auto audioPosition(transportSource.getCurrentPosition());
+    const auto drawPosition((audioPosition / audioLength) * thumbnailBounds.getWidth()
         + thumbnailBounds.getX());
     g.drawLine(drawPosition, thumbnailBounds.getY(), drawPosition,
         thumbnailBounds.getBottom(), 2.0f);
     // Draw window length lines
-    auto startPosition = ((audioPosition - static_cast<double>(windowLength) / 2.0 / sampleRate) / audioLength)* thumbnailBounds.getWidth();
-    auto endPosition = ((audioPosition + static_cast<double>(windowLength) / 2.0 / sampleRate) / audioLength)* thumbnailBounds.getWidth();
+    const auto startPosition = ((audioPosition - static_cast<double>(windowLength) / 2.0 / sampleRate) / audioLength)* thumbnailBounds.getWidth();
+    const auto endPosition = ((audioPosition + static_cast<double>(windowLength) / 2.0 / sampleRate) / audioLength)* thumbnailBounds.getWidth();
     g.setColour(Colours::lightgrey);
     g.drawLine(startPosition, thumbnailBounds.getY(), startPosition,
         thumbnailBounds.getBottom(), 1.0f);
@@ -134,16 +138,16 @@ void SamplePanel::resized()
     filenameComponent->setBounds(0, 0, 1024, 30);
 }
 
-AudioBuffer<float>* SamplePanel::getSampleBuffer()
+AudioBuffer<float>* SamplePanel::getSampleBuffer() const
 {
     return sampleBuffer.get();
 }
 
 void SamplePanel::setSamplePosition(float position)
 {
-    auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
+	const auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
     // Map to sample 
-    double mapped = map(position, 0.0f, 1.0, 0.0, fileLengthInSeconds);
+    double mapped = map(position, 0.0f, 1.0f, 0.0f, fileLengthInSeconds);
     // Constrain to keep from going out of component bounds
     if (mapped < 0.0f)
         mapped = 0.0f;
@@ -156,75 +160,47 @@ void SamplePanel::setSamplePosition(float position)
     transportSource.sendChangeMessage();
 }
 
-void SamplePanel::setSamplePositionAbsolute(float position)
-{
-    positionAbsolute = position;
-}
 
-double SamplePanel::getSamplePosition()
-{
-    return transportSource.getCurrentPosition();
-}
-
-void SamplePanel::setSampleRate(double sampleRate)
-{
-    this->sampleRate = sampleRate;
-}
-
-void SamplePanel::mouseDown(const MouseEvent& mouseEvent)
-{
-    mouseEventUpdateSamplePosition(mouseEvent);
-}
-
-void SamplePanel::mouseDrag(const MouseEvent& mouseEvent)
-{
-    mouseEventUpdateSamplePosition(mouseEvent);
-}
 
 void SamplePanel::mouseEventUpdateSamplePosition(const MouseEvent& mouseEvent) {
-    // If no sample loaded open window
+    // If no sample is loaded open the file-chooser window
     if (fileLoadedState != loaded) {
         FileChooser myChooser("Please select the file you want to load...",
             File::getSpecialLocation(File::userHomeDirectory),
-            "*.wav");
+            "*.wav"); // Only *.wav files are accepted at the moment
 
         if (myChooser.browseForFileToOpen())
         {
-            File file(myChooser.getResult());
+	        const File file(myChooser.getResult());
             currentFilePath.setValue(file.getFullPathName());
         }
-        return;
+    } else
+    {
+	    // Get x position in terms of component
+	    const auto xPos = mouseEvent.position.getX();
+	    const auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
+	    // Map to sample 
+	    double mapped = map(xPos, 0.0f, static_cast<float>(getWidth()), 0.0f, fileLengthInSeconds);
+	    // Constrain to keep from going out of component bounds
+	    if (mapped < 0.0f)
+	        mapped = 0.0f;
+	    if (mapped > fileLengthInSeconds)
+	        mapped = fileLengthInSeconds;
+
+	    // Set marker
+	    transportSource.setPosition(mapped);
+
+	    // Set parameter as well to keep in sync
+	    // Map to [0...1]
+	    mapped = map(float(xPos), 0.0f, float(getWidth()), 0.0, 1.0);
+	    valueTreeState.getParameterAsValue("position").setValue(mapped);
+    	repaint();
     }
-
-    // Get x position in terms of component
-    auto xPos = mouseEvent.position.getX();
-    auto fileLengthInSeconds = float(transportSource.getLengthInSeconds());
-    // Map to sample 
-    double mapped = map(xPos, 0.0f, static_cast<float>(getWidth()), 0.0f, fileLengthInSeconds);
-    // Constrain to keep from going out of component bounds
-    if (mapped < 0.0f)
-        mapped = 0.0f;
-    if (mapped > fileLengthInSeconds)
-        mapped = fileLengthInSeconds;
-
-    // Set marker
-    transportSource.setPosition(mapped);
-
-    // Set parameter as well to keep in sync
-     // Map to [0...1]
-    mapped = map(float(xPos), 0.0f, float(getWidth()), 0.0, 1.0);
-    valueTreeState.getParameterAsValue("position").setValue(mapped);
-
-    repaint();
 }
 
-/*
-    Loads an audio file into the application and stores it in the sample buffer
-*/
-void SamplePanel::loadFile(File file) {
-    
-    auto fileExtension = file.getFileExtension();
-
+void SamplePanel::loadFile(const File& file) {
+	// Get file extension
+	const auto fileExtension = file.getFileExtension();
     // Only accept wavs
     if (fileExtension == ".wav" || fileExtension == ".WAV") {
         filenameComponent->setCurrentFile(file, false, dontSendNotification);
@@ -232,9 +208,21 @@ void SamplePanel::loadFile(File file) {
         // If file is valid load it and send callback to processor
         if (reader != 0)
         {
+        	// Fix channels to 2 (stereo)
             // Read into sample buffer
-            sampleBuffer->setSize(reader->numChannels, reader->lengthInSamples);
-            reader->read(sampleBuffer.get(), 0, reader->lengthInSamples, 0, true, true);
+            const auto numChannels = 2;
+            sampleBuffer->setSize(numChannels, reader->lengthInSamples);
+			reader->read(sampleBuffer.get(), 0, reader->lengthInSamples, 0, true, true);
+            // If the incoming sound is mono, use the same data for both channels
+        	if (reader->numChannels == 1)
+        	{
+        		const auto leftChannelReader = sampleBuffer->getReadPointer(0);
+        		const auto rightChannelWriter = sampleBuffer->getWritePointer(1);
+        		for (int sample = 0; sample < sampleBuffer->getNumSamples(); sample++)
+        		{
+        			rightChannelWriter[sample] = leftChannelReader[sample];
+        		}
+        	}
 
             // Display thumbnail
             std::unique_ptr<AudioFormatReaderSource> newSource(new AudioFormatReaderSource(reader, true));
@@ -244,16 +232,17 @@ void SamplePanel::loadFile(File file) {
             // Reset / release resources
             readerSource.reset(newSource.release());
             reader.release();
-        }
 
-        // Restore position if loaded
-        if (positionAbsolute > 0.0) {
-            setSamplePosition(positionAbsolute);
-            positionAbsolute = 0.0;
-        }
+        	// Restore position if loaded
+	        if (positionFromState > 0.0) {
+	            setSamplePosition(positionFromState);
+	            positionFromState = 0.0;
+	        }
 
-        fileLoadedState = loaded;
-        repaint();
+        	// Set file loaded state
+	        fileLoadedState = loaded;
+	        repaint();
+	    }
     }
     else {
         // Reset file component
@@ -264,17 +253,21 @@ void SamplePanel::loadFile(File file) {
     }
 }
 
+// ----------------- Listeners ------------------------
 void SamplePanel::valueChanged(Value& val)
 {
     if (val.toString() != "") {
         valueTreeState.state.setProperty(currentFilePathID, val.toString(), nullptr);
-        auto currentFile = new File(val.toString());
-        loadFile(*currentFile);
+    	// Create JUCE file
+        const auto currentFile = new File(val.toString());
+        // Load file into sample buffer
+    	loadFile(*currentFile);
     }
 }
 
 void SamplePanel::changeListenerCallback(ChangeBroadcaster* source)
 {
+	// Currently those callbacks only repaint on changes made to the UI
     if (source == &transportSource) transportSourceChanged();
     if (source == &thumbnail) thumbnailChanged();
 }
@@ -289,6 +282,15 @@ void SamplePanel::thumbnailChanged()
     repaint();
 }
 
+void SamplePanel::filenameComponentChanged(FilenameComponent* fileComponentThatHasChanged) 
+{
+	// Update the currentFilePath value if the file was changed
+    if (fileComponentThatHasChanged == filenameComponent.get()) {
+        currentFilePath.setValue(filenameComponent->getCurrentFile().getFullPathName());
+    }
+}
+
+// ----------------- Getters and setters ------------------------
 void SamplePanel::setWindowLength(float windowLength) {
     this->windowLength = static_cast<int>(windowLength);
 
@@ -301,9 +303,27 @@ void SamplePanel::setCurrentFilePath(String& path)
     currentFilePath.setValue(path);
 }
 
-void SamplePanel::filenameComponentChanged(FilenameComponent* fileComponentThatHasChanged) 
+void SamplePanel::setSamplePositionFromState(float position)
 {
-    if (fileComponentThatHasChanged == filenameComponent.get()) {
-        currentFilePath.setValue(filenameComponent->getCurrentFile().getFullPathName());
-    }
+    positionFromState = position;
+}
+
+double SamplePanel::getSamplePosition()
+{
+    return transportSource.getCurrentPosition();
+}
+
+void SamplePanel::setSampleRate(double sampleRate)
+{
+    this->sampleRate = sampleRate;
+}
+
+void SamplePanel::mouseDown(const MouseEvent& mouseEvent)
+{
+	mouseEventUpdateSamplePosition(mouseEvent);
+}
+
+void SamplePanel::mouseDrag(const MouseEvent& mouseEvent)
+{
+    mouseEventUpdateSamplePosition(mouseEvent);
 }

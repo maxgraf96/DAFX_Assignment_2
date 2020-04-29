@@ -44,9 +44,11 @@ FilterGraph::FilterGraph(double sampleRate, Dafx_assignment_2AudioProcessor& p, 
 
     vts.addParameterListener("mainFilterCutoff", this);
     vts.addParameterListener("mainFilterQ", this);
- 
+
     fs = sampleRate;
     repaint();
+
+    addChangeListener(this);
 }
 
 FilterGraph::~FilterGraph()
@@ -291,7 +293,8 @@ void FilterGraph::mouseDrag(const MouseEvent& event)
     // Update filter coefficients
     updateFilters(freq, q);
 
-    repaint();
+	// Asynchronous repaint
+    sendChangeMessage();
 }
 
 void FilterGraph::mouseDown(const MouseEvent& event) {
@@ -336,10 +339,16 @@ void FilterGraph::parameterChanged(const String& parameterID, float newValue)
 {
     if (parameterID == "mainFilterCutoff") {
         filterVector[0].setCutoff(newValue);
-        repaint();
+        sendChangeMessage();
     }
     if (parameterID == "mainFilterQ") {
         filterVector[0].setQ(newValue);
-        repaint();
+        sendChangeMessage();
     }
+}
+
+void FilterGraph::changeListenerCallback(ChangeBroadcaster* source)
+{
+    if (source == this) 
+        repaint();
 }

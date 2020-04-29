@@ -9,20 +9,19 @@
 */
 
 #include "Voice.h"
-Voice::Voice(AudioBuffer<float>* sampleBuffer, juce::dsp::ProcessSpec delayProcessContext, int bufferLength, std::array<int, NUM_VOICES>& noteNumberForVoice)
-:sampleBuffer(*sampleBuffer), noteNumberForVoice(noteNumberForVoice) {
-    sampleRate = delayProcessContext.sampleRate;
+Voice::Voice(AudioBuffer<float>& sampleBuffer, dsp::ProcessSpec processContext, int bufferLength, std::array<int, NUM_VOICES>& noteNumberForVoice)
+:sampleBuffer(sampleBuffer), noteNumberForVoice(noteNumberForVoice) {
     // Setup delay object
-    delay.prepare(delayProcessContext);
+    delay.prepare(processContext);
     delay.setFeedback(1.0f);
     delay.setWetLevel(1.0f);
 
     // Set adsr sample rate
-    adsr.setSampleRate(delayProcessContext.sampleRate);
+    adsr.setSampleRate(processContext.sampleRate);
 
-    // Setup buffer
+    // Setup buffers (stereo sound is assumed at the moment)
     buffer.reset(new AudioBuffer<float>(2, bufferLength));
-    processBuffer.reset(new AudioBuffer<float>(2, delayProcessContext.maximumBlockSize));
+    processBuffer.reset(new AudioBuffer<float>(2, processContext.maximumBlockSize));
 }
 
 void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int windowLength)
@@ -39,7 +38,7 @@ void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int 
     // Reset delay elements (filters and delay line)
     delay.reset();
 
-    // Prepare delay for fine-tuning (also sets delay length)
+    // Prepare delay for fine-tuning (also sets the delay-line length)
     delay.prepareFineTune(currentFrequency, pitchBendRange, 0.0f);
 
     // Load window into playback buffer
@@ -52,10 +51,10 @@ void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int 
 
     // Set note number
     this->noteNumber = noteNumber;
+	
     // Start envelope
     if(adsrMode)
         adsr.noteOn();
-    playing = true;
 }
 
 void Voice::noteOff()
@@ -66,7 +65,7 @@ void Voice::noteOff()
 
 void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int windowLength, bool windowChanged, float pitchWheelValue)
 {
-    // Always check if adsr is done, if so, reset buffer position
+    // Always check if adsr is done, if so, reset buffer position, and release note slot
     if (adsrMode && !adsr.isActive()) {
         resetVoice();
         return;
@@ -80,23 +79,29 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
         for (int channel = 0; channel < sampleBuffer.getNumChannels(); channel++)
             buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, windowLength);
 
+    	// Update delay object
         delay.windowChanged();
+
+    	 // Reset buffer position
         bufferPosition = 0;
     }
 
+	// Update delay object
+	// This is necessary to do in every audio frame in order to respond to pitch wheel changes
     delay.prepareFineTune(currentFrequency, pitchBendRange, pitchWheelValue);
 
     // Get number of samples to copy - this corresponds to the block size specified by the plugin host
     auto numSamplesToCopy = mainBuffer.getNumSamples();
     auto isBufferEndReached = false;
     if (bufferPosition + numSamplesToCopy >= buffer->getNumSamples()) {
-        // If we are at the end of the capture buffer
+        // Check whether the end of the capture buffer is reached
         numSamplesToCopy = buffer->getNumSamples() - bufferPosition;
-        // Stop playback for next block if in non-pad mode
+        // Stop playback for next block: In ADSR mode this will set the buffer position to bufferLength / 2 in order to keep the sound
+    	// In normal mode this will simply release the current voice
         isBufferEndReached = true;
     }
 
-    // Create subbuffer
+    // Load windowed data into process buffer
     for (int channel = 0; channel < buffer->getNumChannels(); channel++) {
         processBuffer->copyFrom(channel, 0, *buffer, channel, bufferPosition, numSamplesToCopy);
     }
@@ -122,7 +127,7 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
 
     // What to do when end of buffer reached:
     // If mode is normal, stop playing
-    // If mode is ADSR, just reset the buffer position to 0 (loop the buffer as volume is controlled by envelope)
+    // If mode is ADSR, reset the buffer position to bufferLength / 2 to loop
     if (isBufferEndReached) {
         if (!adsrMode) {
             // Normal mode
@@ -138,20 +143,25 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
 
 void Voice::resetVoice()
 {
+	// Release note slot in global map
     endNoteInMap();
+	// Reset buffer position
     bufferPosition = NOT_PLAYING;
+	// Clear buffers
     buffer->clear();
     processBuffer->clear();
-    playing = false;
 }
 
 void Voice::endNoteInMap() {
+	// Find current voice in map
     for (int& nn : noteNumberForVoice) {
         if (nn == noteNumber) {
+        	// Reset to not playing
             nn = NOT_PLAYING;
             return;
         }
     }
+	// Reset note number in voice
     noteNumber = NOT_PLAYING;
 }
 
@@ -163,16 +173,6 @@ void Voice::setDelayFeedback(float delayFeedback)
 void Voice::setDelayWet(float delayWet)
 {
     delay.setWetLevel(delayWet);
-}
-
-bool Voice::isPlaying()
-{
-    return playing;
-}
-
-int Voice::getNoteNumber()
-{
-    return noteNumber;
 }
 
 void Voice::setADSRParams(ADSR::Parameters& params)
