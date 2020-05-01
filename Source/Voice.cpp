@@ -41,9 +41,18 @@ void Voice::noteOn(int noteNumber, uint8 velocity, int samplePanelStartIdx, int 
     // Prepare delay for fine-tuning (also sets the delay-line length)
     delay.prepareFineTune(currentFrequency, pitchBendRange, 0.0f);
 
+	// Check if window length is out of range
+	const auto numSamplesInBuffer = sampleBuffer.getNumSamples();
+    auto numSamplesToCopy = windowLength;
+	if(samplePanelStartIdx + numSamplesToCopy > numSamplesInBuffer)
+        numSamplesToCopy = sampleBuffer.getNumSamples() - numSamplesToCopy;
+	// If the window is made very large in a small file then use the end of the sample buffer instead
+    if(numSamplesToCopy < 0)
+        numSamplesToCopy = (WINDOW_LENGTH_MAX > numSamplesInBuffer ? numSamplesInBuffer : WINDOW_LENGTH_MAX) - 1;
+	
     // Load window into playback buffer
     for (int channel = 0; channel < sampleBuffer.getNumChannels(); channel++)
-        buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, windowLength);
+        buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, numSamplesToCopy);
 
     // Attenuate according to velocity
     currentVelocity = map(float(velocity), 0.0, 127.0, 0.0, 1.0);
@@ -75,9 +84,19 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
     if (windowChanged) {
         // Reset playback buffer
         buffer->clear();
+
+    	// Check if window length is out of range
+    	const auto numSamplesInBuffer = sampleBuffer.getNumSamples();
+	    auto numSamplesToCopy = windowLength;
+		if(samplePanelStartIdx + numSamplesToCopy > sampleBuffer.getNumSamples())
+	        numSamplesToCopy = sampleBuffer.getNumSamples() - numSamplesToCopy;
+    	// If the window is made very large in a small file then use the end of the sample buffer instead
+		if(numSamplesToCopy < 0)
+			numSamplesToCopy = (WINDOW_LENGTH_MAX > numSamplesInBuffer ? numSamplesInBuffer : WINDOW_LENGTH_MAX) - 1;
+    	
         // Load window into playback buffer
         for (int channel = 0; channel < sampleBuffer.getNumChannels(); channel++)
-            buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, windowLength);
+            buffer->copyFrom(channel, 0, sampleBuffer, channel, samplePanelStartIdx, numSamplesToCopy);
 
     	// Update delay object
         delay.windowChanged();

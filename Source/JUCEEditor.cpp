@@ -396,6 +396,7 @@ JUCEEditor::~JUCEEditor()
     valueTreeState.removeParameterListener("mode", this);
     valueTreeState.removeParameterListener("dynamicVelocity", this);
     valueTreeState.removeParameterListener("adaptiveDecay", this);
+	valueTreeState.removeParameterListener("position", this);
     valueTreeState.removeParameterListener("mainOutputGain", this);
 
     // Reset attachments

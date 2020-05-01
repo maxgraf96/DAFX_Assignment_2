@@ -32,11 +32,10 @@ Dafx_assignment_2AudioProcessor::Dafx_assignment_2AudioProcessor()
             1.0f,
             0.0f
             ),
-        std::make_unique<AudioParameterInt>(
+        std::make_unique<AudioParameterFloat>(
             "windowLength",
             "Window Length",
-            WINDOW_LENGTH_MIN,
-            WINDOW_LENGTH_MAX,
+			windowLengthRange,
             WINDOW_LENGTH_MIN),
         std::make_unique<AudioParameterFloat>(
             "delayFeedback",
@@ -181,7 +180,7 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
 	
     for (int i = 0; i < NUM_VOICES; i++) {
     	// Create new voice
-        voices.push_back(std::make_unique<Voice>(*sampleBuffer, *processContext, int(2 * sampleRate),
+        voices.push_back(std::make_unique<Voice>(*sampleBuffer, *processContext, WINDOW_LENGTH_MAX,
                                                  noteNumberForVoice));
         // Configure voice
     	voices[i]->setDelayFeedback(*delayFeedbackParam);

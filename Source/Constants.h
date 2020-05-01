@@ -15,7 +15,7 @@ const int NOT_PLAYING = -1;
 
 // Minimum and maximum allowed lengths for the window that is used to extract the excitator burst from the loaded sample
 const int WINDOW_LENGTH_MIN = 1200;
-const int WINDOW_LENGTH_MAX = 20000;
+const int WINDOW_LENGTH_MAX = 95999;
 
 // Maximum number of allowed voices in the synthesis process
 const int NUM_VOICES = 16;
@@ -32,3 +32,4 @@ const double root = std::exp(std::log(2) / 1200);
 const NormalisableRange<float> adsrRange(0, 3000, 1, 0.3f, false);
 const NormalisableRange<float> delayFeedbackRange(0.80, 1.0f, 0.001f, 2.0f, false);
 const NormalisableRange<float> mainFilterCutoffRange(1.0, 20000.0f, 1.0f, 0.3f, false);
+const NormalisableRange<float> windowLengthRange(float(WINDOW_LENGTH_MIN), float(WINDOW_LENGTH_MAX), 1.0f, 0.3f, false);

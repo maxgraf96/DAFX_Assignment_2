@@ -25,13 +25,14 @@ void Delay::prepare(const juce::dsp::ProcessSpec& spec)
     updateDelayTime();
 
     // Use first-order attenuation of the signal in the delay loop
-    filterCoefs = dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, float(sampleRate/2));
+    filterCoefs = dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(sampleRate, 22000.0);
 
 	// Prepare the filters using the host's configuration
 	// Lowpass for attenuation
     for (auto& f : filters)
     {
         f.prepare(spec);
+    	// Set coefficients
         f.coefficients = filterCoefs;
     }
 
@@ -74,8 +75,7 @@ void Delay::process(AudioBuffer<float>& buffer) noexcept
 
             // Fine-tune the string using an allpass filter as described in the KS-extension paper
             const float tuned = tuningFilter.processSample(delayedSample);
-            //float tuned = delayedSample;
-
+        	
             // Get input sample from main buffer
             const auto inputSample = input[i];
 
@@ -189,10 +189,11 @@ void Delay::prepareFineTune(double fundamentalFrequency, int pitchBendRange, flo
 
     C = sin((left - right) / 2.0) / sin((left + right) / 2.0);
 
-    // Set tuning-allpass filter coefficients based on incoming fundamental frequency
-    tuningFilterCoefs = new dsp::IIR::Coefficients<float>(1.0f, C, 1.0f, C);
-    for (auto& f : tuningFilters)
+    // Set tuning-allpass filter coefficients based on incoming fundamental frequency	
+    tuningFilterCoefs = new dsp::IIR::Coefficients<float>(C, 1.0f, 1.0f, C);
+    for (auto& f : tuningFilters){
         f.coefficients = tuningFilterCoefs;
+    }
 
     // If adaptive decay is enabled set stretch factor accordingly
     stretchFactor = feedback - log(1000) * (1.0f / fundamentalFrequency);
