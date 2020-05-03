@@ -12,7 +12,7 @@
 
 Delay::Delay()
 {
-    setMaxDelayTime(2.0f);
+    setMaxDelayTime(2.0f); // Seconds
     setWetLevel(1.0f);
     setFeedback(1.0f);
 }
@@ -21,7 +21,6 @@ void Delay::prepare(const juce::dsp::ProcessSpec& spec)
 {
     jassert(spec.numChannels <= maxNumChannels);
     sampleRate = float(spec.sampleRate);
-	setMaxDelayTime(WINDOW_LENGTH_MAX / spec.sampleRate);
     updateDelayLineSize();
     updateDelayTime();
 

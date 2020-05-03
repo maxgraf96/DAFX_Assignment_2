@@ -131,6 +131,13 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
     // Apply gain for velocity
     processBuffer->applyGain(currentVelocity);
 
+	if (bufferPosition == 0)
+	{
+		auto reader = processBuffer->getReadPointer(0);
+		for (auto sample = 0; sample < processBuffer->getNumSamples(); sample++)
+            DBG(reader[sample]);
+	}
+
     // Apply volume envelope if in synth mode
     if (adsrMode) {
         adsr.applyEnvelopeToBuffer(*processBuffer, 0, numSamplesToCopy);
@@ -163,6 +170,13 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
             bufferPosition = 0;
         }
     }
+
+	// Due to the current handling of the buffer length and release of a note
+	// this is neccessary to release notes once no more sound is coming from a voice
+	if (bufferPosition > 2 * numSamplesToCopy && processBuffer->getRMSLevel(0, 0, numSamplesToCopy) < 0.0001f)
+	{
+		resetVoice();
+	}
 }
 
 void Voice::resetVoice()
