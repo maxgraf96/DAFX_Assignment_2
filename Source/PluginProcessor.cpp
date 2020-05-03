@@ -180,7 +180,11 @@ void Dafx_assignment_2AudioProcessor::prepareToPlay (double sampleRate, int samp
 	
     for (int i = 0; i < NUM_VOICES; i++) {
     	// Create new voice
-        voices.push_back(std::make_unique<Voice>(*sampleBuffer, *processContext, WINDOW_LENGTH_MAX,
+    	// The maximum length of a voice buffer is currently
+    	// set to a high value in order to allow for padded sounds being played for a duration
+    	// Future versions could look into calculating a wavetable from a sustained sound
+    	// and using that (in sustain mode) instead of a long buffer to reduce the space required for voices
+        voices.push_back(std::make_unique<Voice>(*sampleBuffer, *processContext, WINDOW_LENGTH_MAX * 10,
                                                  noteNumberForVoice));
         // Configure voice
     	voices[i]->setDelayFeedback(*delayFeedbackParam);

@@ -41,9 +41,9 @@ SamplePanel::SamplePanel(AudioProcessorValueTreeState& vts)
 
     // Preload sample for convenience
 	// Note: If this path does not exist the plugin simply defaults to no sample
-    const auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\sweetrelease.wav");
-    filenameComponent->setCurrentFile(*currentFile, false, dontSendNotification);
-    loadFile(*currentFile);
+    // const auto currentFile = new File("C:\\Users\\Music\\Ableton\\Mixes\\sweetrelease.wav");
+    // filenameComponent->setCurrentFile(*currentFile, false, dontSendNotification);
+    // loadFile(*currentFile);
 
     // Listen to thumbnail changes
     transportSource.addChangeListener(this);

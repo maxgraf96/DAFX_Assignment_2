@@ -100,36 +100,36 @@ private:
     // Control parameters tied to the audio parameters
 	// Due to the JUCE handling these are all converted to float values
 	// Current position in sample (centre of window)
-    float* positionParam = nullptr;
+    std::atomic<float>* positionParam = nullptr;
 	// Current window length
-    float* windowLengthParam = nullptr;
+    std::atomic<float>* windowLengthParam = nullptr;
 	// Current delay feedback value [0...1]
-    float* delayFeedbackParam = nullptr;
+    std::atomic<float>* delayFeedbackParam = nullptr;
 	// Whether ADSR mode is enabled/disabled
-    float* adsrModeParam = nullptr;
+    std::atomic<float>* adsrModeParam = nullptr;
 	// Attack time (ms)
-    float* attackParam = nullptr;
+    std::atomic<float>* attackParam = nullptr;
 	// Decay time (ms)
-    float* decayParam = nullptr;
+    std::atomic<float>* decayParam = nullptr;
 	// Sustain level [0...1]
-    float* sustainParam = nullptr;
+    std::atomic<float>* sustainParam = nullptr;
 	// Release time (ms)
-    float* releaseParam = nullptr;
+    std::atomic<float>* releaseParam = nullptr;
     // Whether to use a fixed velocity (127 =^= gain of 1.0) for every incoming note
 	// Or use the velocity coming from the MIDI data
-    float* dynamicVelocityParam = nullptr;
+    std::atomic<float>* dynamicVelocityParam = nullptr;
 	// Whether to equalise decay times of notes across different pitches
 	// Normally, due to the synthesis paradigm, higher pitched notes decay faster
 	// If this is enabled, this difference in decays is corrected by adapting the current delay feedback of the voice
 	// to the fundamental frequency of the incoming note
-    float* adaptiveDecayParam = nullptr;
+    std::atomic<float>* adaptiveDecayParam = nullptr;
     // Pitch bend range
-    float* pitchBendRangeParam = nullptr;
+    std::atomic<float>* pitchBendRangeParam = nullptr;
     // Main lowpass filter cutoff frequency and Q values
-    float* mainFilterCutoffParam = nullptr;
-    float* mainFilterQParam = nullptr;
+    std::atomic<float>* mainFilterCutoffParam = nullptr;
+    std::atomic<float>* mainFilterQParam = nullptr;
 	// Main output gain
-    float* mainOutputGainParam = nullptr;
+    std::atomic<float>* mainOutputGainParam = nullptr;
 
     // ADSR parameters
     ADSR::Parameters adsrParams;

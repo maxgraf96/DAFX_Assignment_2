@@ -7,7 +7,7 @@
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Projucer version: 5.4.5
+  Created with Projucer version: 5.4.7
 
   ------------------------------------------------------------------------------
 
@@ -632,7 +632,7 @@ void JUCEEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     else if (sliderThatWasMoved == mainOutputGainSlider.get())
     {
         //[UserSliderCode_mainOutputGainSlider] -- add your slider handling code here..
-    	// Get slider value, convert to string and set to 
+    	// Get slider value, convert to string and set to
         mainOutputGainValLabel->setText(String(sliderThatWasMoved->getValue(), 1) + "dB", dontSendNotification);
         //[/UserSliderCode_mainOutputGainSlider]
     }

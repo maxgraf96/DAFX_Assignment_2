@@ -120,7 +120,7 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
         isBufferEndReached = true;
     }
 
-    // Load windowed data into process buffer
+	// Load windowed data into process buffer
     for (int channel = 0; channel < buffer->getNumChannels(); channel++) {
         processBuffer->copyFrom(channel, 0, *buffer, channel, bufferPosition, numSamplesToCopy);
     }
@@ -154,8 +154,13 @@ void Voice::play(AudioBuffer<float>& mainBuffer, int samplePanelStartIdx, int wi
         }
         else {
             // ADSR mode -> reset buffer position
-            // Note: The reset here goes to the half point of the buffer to avoid the initial pluck sound when padding
-            bufferPosition = int(buffer->getNumSamples() / 2);
+            // Note: This point will only be reached if a note is held for the duration of
+            // (WINDOW_LENGTH_MAX * 10 / sampleRate) seconds
+            // Currently this is the way that allows for long sustained notes to be played
+            // However, this is not particularly memory friendly
+            // Future versions could look into calculating a wavetable from a sustained sound
+    		// and using that (in sustain mode) instead of a long buffer to reduce the space required for voices
+            bufferPosition = 0;
         }
     }
 }
