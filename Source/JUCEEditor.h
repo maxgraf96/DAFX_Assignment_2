@@ -20,9 +20,12 @@
 #pragma once
 
 //[Headers]     -- You can add your own extra header files here --
-#include "../JuceLibraryCode/JuceHeader.h"
+#ifndef JUCEEDITOR_H
+#include <juce_core/juce_core.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "jucefiltergraph/FilterGraph.h"
+#endif
 
 typedef AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
 typedef AudioProcessorValueTreeState::ButtonAttachment ButtonAttachment;

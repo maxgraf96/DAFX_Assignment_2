@@ -9,6 +9,12 @@
 */
 
 #pragma once
+#ifndef CONSTANTS_H
+#include <juce_audio_processors/juce_audio_processors.h>
+#endif
+
+using namespace juce;
+
 // The program-wide signifier for "not playing"
 // This can be applied to buffers, MIDI states etc.
 const int NOT_PLAYING = -1;

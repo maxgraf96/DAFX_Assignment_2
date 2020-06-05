@@ -9,16 +9,19 @@
 */
 
 #pragma once
-#include "../JuceLibraryCode/JuceHeader.h"
+#ifndef DELAY_H
+#include <juce_dsp/juce_dsp.h>
 #include "DelayLine.h"
 #include "Constants.h"
+#endif
+
+using namespace juce;
 
 class Delay
 {
 public:
 	// Default constructor
     Delay();
-
 	// Prepare using the current host configuration
     void prepare(const dsp::ProcessSpec& spec);
 	// Process an incoming audio buffer

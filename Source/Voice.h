@@ -11,7 +11,6 @@
 */
 
 #pragma once
-#include "../JuceLibraryCode/JuceHeader.h"
 #include "Delay.h"
 #include "Constants.h"
 #include "Utility.h"

@@ -9,11 +9,11 @@
 */
 
 #pragma once
-
-#include "../JuceLibraryCode/JuceHeader.h"
+#include <juce_audio_utils/juce_audio_utils.h>
 #include "Utility.h"
 #include "Constants.h"
 
+using namespace juce;
 //==============================================================================
 /*
 */

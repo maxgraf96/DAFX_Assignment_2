@@ -8,7 +8,6 @@
   ==============================================================================
 */
 
-#include "../JuceLibraryCode/JuceHeader.h"
 #include "FilterInfo.h"
 #include "../Utility.h"
 #include "../PluginProcessor.h"
